@@ -20,13 +20,14 @@ const useStyles = makeStyles((theme)=>({
   },
 }));
 
-export default function DataGrid({ columns, data, filterText, tdClassName }) {
+export default function DataGrid({ columns, data, filterText, showFooter=false, tdClassName }) {
   const classes = useStyles();
   // Use the state and functions returned from useTable to build your UI
   const {
     getTableProps,
     getTableBodyProps,
     headerGroups,
+    footerGroups,
     rows,
     prepareRow,
     setGlobalFilter
@@ -63,6 +64,16 @@ export default function DataGrid({ columns, data, filterText, tdClassName }) {
           )
         })}
       </tbody>
+      {showFooter &&
+      <tfoot>
+        {footerGroups.map(group => (
+          <tr {...group.getFooterGroupProps()}>
+            {group.headers.map(column => (
+              <td {...column.getFooterProps()} className={clsx(classes.tableCell, tdClassName)}>{column.render('Footer')}</td>
+            ))}
+          </tr>
+        ))}
+      </tfoot>}
     </table>
   )
 }

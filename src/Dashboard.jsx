@@ -8,9 +8,8 @@ import { NOTIFICATION_TYPE, setNotification } from './store/reducers/notificatio
 import About from './About';
 import axios from 'axios';
 import { BASE_URL } from './api';
-import Home from './Home';
+import YarnCosting from './YarnCosting';
 import { setQualities } from './store/reducers/qualities';
-import Calculator from './Calculator';
 
 const useStyles = makeStyles((theme)=>({
   dashboardRoot: {
@@ -35,7 +34,7 @@ const useStyles = makeStyles((theme)=>({
 }));
 
 const navItems = [
-  {label: 'Home', path: '/home', component: Home},
+  {label: 'Yarn costing', path: '/yarncosting', component: YarnCosting},
   {label: 'About', path: '/about', component: About},
 ];
 
@@ -133,7 +132,7 @@ function Dashboard({location, ...props}) {
           <Box display="flex" style={{padding: '0rem 0.5rem'}} alignItems="center">
             {/* <Logo height="3em" width="3em"/> */}
             <Typography variant="h6" style={{color: '#d94874'}}>
-              Costing Calc
+              Calculators
             </Typography>
           </Box>
           <NavBar navItems={navItems} />
@@ -152,7 +151,7 @@ function Dashboard({location, ...props}) {
               );
             })}
             <Route>
-              <Redirect to='/home' />
+              <Redirect to='/yarncosting' />
             </Route>
           </Switch>
         </Box>

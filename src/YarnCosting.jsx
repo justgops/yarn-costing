@@ -1,21 +1,13 @@
-import { Box, Button, Link, makeStyles, Modal, OutlinedInput, useTheme } from '@material-ui/core';
+import { Box, Button, IconButton, Link, makeStyles, Modal, OutlinedInput, useTheme } from '@material-ui/core';
 import React, { useMemo, useRef, useState } from 'react';
 import { connect } from 'react-redux';
 import DataGrid from './DataGrid';
-import { setNotification } from './store/reducers/notification';
+import { NOTIFICATION_TYPE, setNotification } from './store/reducers/notification';
 import { useRouteMatch, Link as RouteLink, withRouter } from 'react-router-dom';
 import Calculator from './Calculator';
-
-const QualityLink = withRouter(({path, ...props}) => {
-  let theme = useTheme();
-  let {children, ...otherProps} = props;
-  let match = useRouteMatch({
-    path: path,
-  });
-  return <Link style={{fontSize: theme.typography.fontSize*1.1}}
-    component={RouteLink} to={path} {...otherProps} color={match ? "primary" : "default"}
-    disableTouchRipple>{children}</Link>;
-});
+import FileCopyOutlinedIcon from '@material-ui/icons/FileCopyOutlined';
+import axios from 'axios';
+import { BASE_URL } from './api';
 
 const useStyles = makeStyles((theme)=>({
   root: {
@@ -32,7 +24,7 @@ const useStyles = makeStyles((theme)=>({
   }
 }));
 
-function Home({qualities, onQualityClick}) {
+function YarnCosting({qualities, onQualityClick}) {
   const classes = useStyles();
   const [openCalc, setOpenCalc] = useState(false);
   const [selId, setSelId] = useState({});
@@ -56,6 +48,25 @@ function Home({qualities, onQualityClick}) {
 
   const [search, setSearch] = useState('');
 
+  const onSave = (isNew, data)=>{
+    console.log(isNew, data);
+    let method = '', url;
+    // if(isNew) {
+    //   method = isNew ? 'POST' : 'PUT';
+    //   url = BASE_URL.QUALITIES,
+    // }
+    axios({
+      method: method,
+      url: BASE_URL.QUALITIES,
+      data: data,
+    }).then(()=>{
+      setOpenCalc(false);
+      setNotification(NOTIFICATION_TYPE.SUCCESS, 'Quality saved successfully');
+    }).catch(()=>{
+      setNotification(NOTIFICATION_TYPE.ERROR, 'Save failure');
+    })
+  }
+
   return (
     <Box>
       <Box className={classes.root} ref={homeRef}>
@@ -70,7 +81,7 @@ function Home({qualities, onQualityClick}) {
           <DataGrid columns={columns} data={qualities} filterText={search}/>
         </Box>
       </Box>
-      <Calculator open={openCalc} onClose={()=>setOpenCalc(false)} data={selId} />
+      <Calculator open={openCalc} onClose={()=>setOpenCalc(false)} onSave={onSave} data={selId} />
     </Box>
   )
 }
@@ -80,4 +91,4 @@ export default connect((state)=>({
 }), (dispatch)=>({
   setNotification: (...args)=>{dispatch(setNotification.apply(this, args))},
   clearNotification: ()=>{dispatch(setNotification(null, null))},
-}))(Home);
+}))(YarnCosting);
