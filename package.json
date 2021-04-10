@@ -1,8 +1,27 @@
 {
   "name": "yarn-costing",
   "version": "0.1.0",
-  "homepage": "demo/calculator/",
+  "main": "main.js",
+  "//homepage": "demo/calculator/",
   "private": true,
+  "build": {
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        }
+      ],
+      "icon": "app.ico"
+    }
+  },
   "dependencies": {
     "@material-ui/core": "^4.11.3",
     "@material-ui/icons": "^4.11.2",
@@ -11,6 +30,11 @@
     "@testing-library/react": "^11.1.0",
     "@testing-library/user-event": "^12.1.10",
     "axios": "^0.21.1",
+    "cors": "^2.8.5",
+    "electron": "^12.0.2",
+    "electron-builder": "^22.10.5",
+    "electron-rebuild": "^2.3.5",
+    "express-handlebars": "^5.3.0",
     "lodash": "^4.17.21",
     "material-ui-color": "^1.1.0",
     "react": "^17.0.1",
@@ -20,13 +44,21 @@
     "react-scripts": "4.0.3",
     "react-table": "^7.6.3",
     "redux": "^4.0.5",
+    "sequelize": "^6.6.2",
+    "sqlite3": "^5.0.2",
+    "umzug": "^2.3.0",
     "web-vitals": "^1.0.1"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "start:electron": "yarn run electron .",
+    "pack": "electron-builder --win",
+    "dist": "yarn run buildjs && yarn run pack",
+    "rebuild": "yarn run electron-rebuild -f -w",
+    "postinstall": "electron-builder install-app-deps"
   },
   "eslintConfig": {
     "extends": [
