@@ -44,7 +44,7 @@ function License({activation, onActivate, ...props}) {
     </Typography>
     <FormRow>
       <FormRowItem>
-        <FormInputText label="System ID" value={activation.system_id} readOnly hasCopy></FormInputText>
+        <FormInputText label="System ID" value={activation.system_id} readOnly></FormInputText>
       </FormRowItem>
       <FormRowItem></FormRowItem>
     </FormRow>

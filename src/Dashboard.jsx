@@ -8,7 +8,7 @@ import { NOTIFICATION_TYPE, setNotification } from './store/reducers/notificatio
 import License from './License';
 import {epochDiffDays, getAxiosErr, getEpoch} from './utils';
 import { BASE_URL, getApi } from './api';
-import YarnCosting from './YarnCosting';
+import FabricCosting from './FabricCosting';
 import IconButton from '@material-ui/core/IconButton';
 import CloseIcon from '@material-ui/icons/Close';
 
@@ -35,7 +35,7 @@ const useStyles = makeStyles((theme)=>({
 }));
 
 const navItems = [
-  {label: 'Yarn costing', path: '/yarncosting', component: YarnCosting},
+  {label: 'Fabric costing', path: '/fabriccosting', component: FabricCosting},
   {label: 'License', path: '/license', component: License},
 ];
 
@@ -144,7 +144,7 @@ function Dashboard({location, ...props}) {
               );
             })}
             <Route>
-              <Redirect to='/yarncosting' />
+              <Redirect to='/FabricCosting' />
             </Route>
           </Switch>
         </Box>

@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, globalShortcut } = require('electron');
 const path = require('path');
 const server = require(path.resolve(__dirname, 'server.js'));
 const migrate = require(path.resolve(__dirname, 'db', 'migrate.js'));
+const getPort = require('get-port');
 
 function createWindow () {
   // Create the browser window.

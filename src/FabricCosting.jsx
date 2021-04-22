@@ -3,9 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { connect } from 'react-redux';
 import DataGrid from './DataGrid';
 import { NOTIFICATION_TYPE, setNotification } from './store/reducers/notification';
-import { useRouteMatch, Link as RouteLink, withRouter } from 'react-router-dom';
 import Calculator from './Calculator';
-import FileCopyOutlinedIcon from '@material-ui/icons/FileCopyOutlined';
 import { BASE_URL, getApi } from './api';
 import _ from 'lodash';
 
@@ -42,7 +40,7 @@ function getAxiosErr(err) {
   return message;
 }
 
-function YarnCosting(props) {
+function FabricCosting(props) {
   const classes = useStyles();
   const [openCalc, setOpenCalc] = useState(false);
   const [selId, setSelId] = useState({});
@@ -138,4 +136,4 @@ function YarnCosting(props) {
 export default connect(()=>({}), (dispatch)=>({
   setNotification: (...args)=>{dispatch(setNotification.apply(this, args))},
   clearNotification: ()=>{dispatch(setNotification(null, null))},
-}))(YarnCosting);
+}))(FabricCosting);
