@@ -1,5 +1,5 @@
 import { Box, Button, Card, CardContent, CardHeader, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, IconButton, makeStyles, OutlinedInput, Paper, Slide, Typography } from '@material-ui/core';
-import React, { useCallback, useMemo, useReducer, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { connect } from 'react-redux';
 import DataGrid from './DataGrid';
 import { setNotification } from './store/reducers/notification';
@@ -37,6 +37,9 @@ const formReducer = (state, action)=>{
   let newState = _.cloneDeep(state);
   let rows = null;
   switch(action.type) {
+    case 'init':
+      newState = action.value;
+      break;
     case 'set_value':
       _.set(newState, action.path, action.value);
       if(action.gridReducer) {
@@ -167,6 +170,26 @@ function Calculator({open, onClose, onSave, data}) {
   const [formData, formDispatch] = useReducer(formReducer, data);
   const [formDataErr, setFormDataErr] = useState({});
 
+  useEffect(()=>{
+    formDispatch({
+      type: 'init',
+      value: data || {},
+    });
+  }, [data]);
+
+  const onTextChange = useCallback((e, name) => {
+    let value = e;
+    if(e && e.target) {
+      name = e.target.name;
+      value = e.target.value;
+    }
+    formDispatch({
+      type: 'set_value',
+      path: name,
+      value: value,
+    });
+  });
+
   const onWarpTextChange = useCallback((e, name) => {
     let value = e;
     if(e && e.target) {
@@ -271,6 +294,9 @@ function Calculator({open, onClose, onSave, data}) {
   const getDefaultRow = (cols) => {
     let row = {}
     cols.forEach((col)=>{
+      if(col.id?.startsWith('btn')) {
+        return;
+      }
       row[col.accessor] = 0;
     });
     return row;
@@ -286,8 +312,16 @@ function Calculator({open, onClose, onSave, data}) {
         {editMode ? 'Update quality' : 'Add new quality'}
       </DialogTitle>
       <DialogContent dividers={true}>
-        <FormInputText autoFocus label="Name" name='name' value={formData.name}
-          required errorMsg={formDataErr.name} onChange={onWeftTextChange} />
+        <FormRow>
+          <FormRowItem>
+            <FormInputText autoFocus label="Name" name='name' value={formData.name}
+              required errorMsg={formDataErr.name} onChange={onTextChange} />
+          </FormRowItem>
+          <FormRowItem>
+            <FormInputText label="Notes" name='notes' value={formData.notes}
+              errorMsg={formDataErr.notes} onChange={onTextChange} />
+          </FormRowItem>
+        </FormRow>
         <Grid container spacing={1}>
           <Grid item sm={12} md={12} lg={10} xl={10}>
             <Paper style={{height: '100%'}}>
@@ -410,10 +444,10 @@ function Calculator({open, onClose, onSave, data}) {
       <DialogActions style={{justifyContent: 'flex-start'}}>
         <Button variant="contained" onClick={()=>{
           onSave(editMode ? false : true, formData);
-        }} color="primary">Save</Button>
+        }} color="primary" disabled={!Boolean(formData.name)}>Save</Button>
         <Button variant="contained" onClick={()=>{
           onSave(true, formData);
-        }} color="primary">Copy and Save</Button>
+        }} color="primary" disabled={!Boolean(formData.name)}>Copy and Save</Button>
         <Button variant="outlined" color="primary" onClick={onClose} style={{marginLeft: '0.5rem'}}>Cancel</Button>
       </DialogActions>
     </Dialog>

@@ -1,15 +1,16 @@
 import { AppBar, Box, makeStyles, Snackbar, Toolbar, Typography } from '@material-ui/core';
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Redirect, Route, Switch, useRouteMatch } from 'react-router-dom';
 import NavButton from './components/NavButton';
 import { connect } from 'react-redux';
 import Alert from '@material-ui/lab/Alert';
 import { NOTIFICATION_TYPE, setNotification } from './store/reducers/notification';
-import About from './About';
-import axios from 'axios';
-import { BASE_URL } from './api';
+import License from './License';
+import {epochDiffDays, getAxiosErr, getEpoch} from './utils';
+import { BASE_URL, getApi } from './api';
 import YarnCosting from './YarnCosting';
-import { setQualities } from './store/reducers/qualities';
+import IconButton from '@material-ui/core/IconButton';
+import CloseIcon from '@material-ui/icons/Close';
 
 const useStyles = makeStyles((theme)=>({
   dashboardRoot: {
@@ -35,7 +36,7 @@ const useStyles = makeStyles((theme)=>({
 
 const navItems = [
   {label: 'Yarn costing', path: '/yarncosting', component: YarnCosting},
-  {label: 'About', path: '/about', component: About},
+  {label: 'License', path: '/license', component: License},
 ];
 
 function NavBar({navItems}) {
@@ -67,8 +68,16 @@ function SubMenu({item}) {
   }
 }
 
+const TRIAL_DAYS = 15;
+
 function Dashboard({location, ...props}) {
   const classes = useStyles();
+  const api = useMemo(()=>getApi());
+  const [activation, setActivation] = useState({
+    is_trial: true,
+    usage_days_left: 0,
+    system_id: null,
+  });
   const navSubItems = useMemo(()=>{
     let tmp = []
     navItems.filter((item)=>Boolean(item.submenu)).forEach((item)=>{
@@ -77,53 +86,37 @@ function Dashboard({location, ...props}) {
     return tmp;
   });
 
-  useEffect(()=>{
-    /* load masters */
-    async function fetchQualities() {
-      try {
-        // let res = await axios.get(BASE_URL.EMPLOYEE);
-        let res = {
-          data: [{
-            'id': 1,
-            'name': 'aditya',
-            'notes': 'the best quality'
-          },{
-            'id': 2,
-            'name': 'aditya tosh',
-            'notes': 'the best quality'
-          },{
-            'id': 2,
-            'name': 'aditya tosh',
-            'notes': 'the best quality'
-          },{
-            'id': 2,
-            'name': 'aditya tosh',
-            'notes': 'the best quality'
-          },{
-            'id': 2,
-            'name': 'aditya tosh',
-            'notes': 'the best quality'
-          },{
-            'id': 2,
-            'name': 'aditya tosh',
-            'notes': 'the best quality'
-          },{
-            'id': 2,
-            'name': 'aditya tosh',
-            'notes': 'the best quality'
-          },{
-            'id': 2,
-            'name': 'aditya tosh',
-            'notes': 'the best quality'
-          }]
-        };
-        props.setQualities(res.data);
-      } catch(err) {
-        props.setNotification(NOTIFICATION_TYPE.ERROR, err);
+  const onActivate = (activation_date, activation_key)=>{
+    setActivation((prev)=>{
+      return {
+        ...prev,
+        is_trial: !Boolean(activation_date),
       }
-    }
-    fetchQualities();
+    });
+  }
+
+  useEffect(()=>{
+    api.post(BASE_URL.MISC + '/init')
+        .then((res)=>{
+            let data = res.data;
+            console.log(data);
+            setActivation((prev)=>{
+              let usage_days_left = (TRIAL_DAYS - epochDiffDays(getEpoch(), data.install_date));
+              usage_days_left = usage_days_left < 0 ? 0 : usage_days_left;
+              return {
+                ...prev,
+                system_id: data.system_id,
+                is_trial: !Boolean(data.activation_date),
+                usage_days_left: usage_days_left,
+              }
+            });
+        })
+        .catch((err)=>{
+            console.log(getAxiosErr(err));
+        });
   }, []);
+
+
   return(
     <Box className={classes.dashboardRoot}>
       <Box><Toolbar variant="dense"/></Box>
@@ -132,7 +125,7 @@ function Dashboard({location, ...props}) {
           <Box display="flex" style={{padding: '0rem 0.5rem'}} alignItems="center">
             {/* <Logo height="3em" width="3em"/> */}
             <Typography variant="h6" style={{color: '#d94874'}}>
-              Calculators
+              Costing
             </Typography>
           </Box>
           <NavBar navItems={navItems} />
@@ -145,7 +138,7 @@ function Dashboard({location, ...props}) {
           <Switch>
             {[...navItems, ...navSubItems].map((item)=>{
               return (
-                <Route key={item.path} exact path={item.path} component={item.component}>
+                <Route key={item.path} exact path={item.path} render={(props)=><item.component {...props} onActivate={onActivate} activation={activation}/>} >
                   {item.redirect && <Redirect to={item.redirect} />}
                 </Route>
               );
@@ -158,6 +151,7 @@ function Dashboard({location, ...props}) {
       <Snackbar
         open={Boolean(props.notify.message)}
         autoHideDuration={2500}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         onClose={(event, reason)=>{
           if (reason === 'clickaway') {
             return;
@@ -165,7 +159,7 @@ function Dashboard({location, ...props}) {
           props.clearNotification();
         }}
       >
-        <Alert severity={props.notify.type}>
+        <Alert severity={props.notify.type} onClose={props.clearNotification}>
           {props.notify.message}
         </Alert>
       </Snackbar>
@@ -176,5 +170,4 @@ function Dashboard({location, ...props}) {
 export default connect((state)=>({notify: state.notify}), (dispatch)=>({
   setNotification: (...args)=>{dispatch(setNotification.apply(this, args))},
   clearNotification: ()=>{dispatch(setNotification(null, null))},
-  setQualities: (payload)=>{dispatch(setQualities(payload))},
 }))(Dashboard);

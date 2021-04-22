@@ -98,6 +98,9 @@ export const theme = createMuiTheme({
             },
             inputMarginDense: {
                 padding: defaultTheme.spacing(1, 1.5),
+            },
+            adornedEnd: {
+                paddingRight: defaultTheme.spacing(0.5),
             }
         },
         MuiAutocomplete: {

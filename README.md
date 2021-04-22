@@ -29,42 +29,25 @@ Your app is ready to be deployed!
 
 See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
 
-### `yarn eject`
+Creating mirgations is easy: https://sequelize.org/v5/manual/migrations.html
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+npx sequelize-cli model:generate --name Qualities --attributes name:string,notes:string,data:string
+npx sequelize-cli model:generate --name Misc --attributes last_opened_enc:string,install_date_enc:string,system_id:string,expiry_date_enc:string,activation_date_enc:string
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+npx sequelize-cli model:generate --name MASTER_COMPANY --attributes companyname:string,companyshortname:string,addressline:string,addressline1:string,city:string,state:string,pincode:string
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+npx sequelize-cli model:generate --name MASTER_WORKROLE --attributes roletype:string,shifthours:real,rolewages:real,sort_priority:integer,desc:string
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+npx sequelize-cli model:generate --name MASTER_WAGETYPE --attributes wagetype:string,desc:string,unit:string
 
-## Learn More
+npx sequelize-cli model:generate --name MASTER_PMTTYPE --attributes pmttype:string,desc:string
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+npx sequelize-cli model:generate --name MASTER_EMPLOYEE --attributes firstname:string,lastname:string,startdate:date,enddate:date,phonenumber:string
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+npx sequelize-cli model:generate --name DAILYATTENDANCE --attributes empid:integer,firstin:date,lunchout:date,lunchin:date,finalout:date,workingtime:real,breaktime:real
 
-### Code Splitting
+npx sequelize-cli model:generate --name DAILYWAGES --attributes empid:integer,wagedate:date,wages:real
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+npx sequelize-cli model:generate --name TRASNACTION --attributes empid:integer,pmttypeid:integer,compid:integer,transdate:date,amount:real,desc:string
 
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `yarn build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+/** Seeders **/ npx sequelize-cli seed:generate --name default-users npx sequelize-cli seed:generate --name default-wagetype npx sequelize-cli seed:generate --name default-pmttype npx sequelize-cli seed:generate --name default-workrole

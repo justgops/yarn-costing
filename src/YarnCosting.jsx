@@ -1,13 +1,13 @@
 import { Box, Button, IconButton, Link, makeStyles, Modal, OutlinedInput, useTheme } from '@material-ui/core';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { connect } from 'react-redux';
 import DataGrid from './DataGrid';
 import { NOTIFICATION_TYPE, setNotification } from './store/reducers/notification';
 import { useRouteMatch, Link as RouteLink, withRouter } from 'react-router-dom';
 import Calculator from './Calculator';
 import FileCopyOutlinedIcon from '@material-ui/icons/FileCopyOutlined';
-import axios from 'axios';
-import { BASE_URL } from './api';
+import { BASE_URL, getApi } from './api';
+import _ from 'lodash';
 
 const useStyles = makeStyles((theme)=>({
   root: {
@@ -24,46 +24,93 @@ const useStyles = makeStyles((theme)=>({
   }
 }));
 
-function YarnCosting({qualities, onQualityClick}) {
+function getAxiosErr(err) {
+  let message = '';
+  if (err.response) {
+    // client received an error response (5xx, 4xx)
+    if(_.isString(err.response.data.message)) {
+      message = err.response.data.message;
+    } else {
+      message = err.response.statusText + '. Contact administrator.';
+    }
+  } else if (err.request) {
+    // client never received a response, or request never left
+    message = 'Not able to send the request. Contact administrator.';
+  } else {
+    message = 'Some error occurred. Contact administrator.';
+  }
+  return message;
+}
+
+function YarnCosting(props) {
   const classes = useStyles();
   const [openCalc, setOpenCalc] = useState(false);
   const [selId, setSelId] = useState({});
+  const [qualities, setQualities] = useState([]);
   const homeRef = useRef();
+  const apiObj = useMemo(()=>getApi(), []);
+  const licExpired = props.activation.is_trial && props.activation.usage_days_left <= 0;
+
+  useEffect(()=>{
+    /* load masters */
+    apiObj.get(BASE_URL.QUALITIES)
+      .then((res)=>{
+        setQualities(res.data);
+      })
+      .catch((err)=>{
+        props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(err));
+      });
+  }, []);
+
   const columns = useMemo(()=>[
     {
       Header: 'Name',
-      accessor: 'name',
+      id: 'name',
       Cell: ({value, row})=>{
         return <Link onClick={()=>{
-          setSelId(row.original);
+          if(licExpired) return;
+          setSelId({
+            id: row.original.id,
+            ...row.original.data
+          });
           setOpenCalc(true);
-        }} href="#">{value}</Link>
+        }} href="#">{row.original.data.name}</Link>
       }
     },
     {
       Header: 'Notes',
-      accessor: 'notes',
+      id: 'notes',
+      Cell: ({row})=><span>{row.original.data.notes}</span>,
     },
-  ], []);
+  ], [licExpired]);
 
   const [search, setSearch] = useState('');
 
-  const onSave = (isNew, data)=>{
-    console.log(isNew, data);
-    let method = '', url;
-    // if(isNew) {
-    //   method = isNew ? 'POST' : 'PUT';
-    //   url = BASE_URL.QUALITIES,
-    // }
-    axios({
+  const onSave = (isNew, formData)=>{
+    let {id, ...data} = formData;
+    let method = 'POST', url = BASE_URL.QUALITIES;
+    if(!isNew) {
+      method = 'PUT';
+      url += '/' + id;
+    }
+    apiObj({
       method: method,
-      url: BASE_URL.QUALITIES,
+      url: url,
       data: data,
-    }).then(()=>{
+    }).then((res)=>{
+      let newQ = [
+        ...qualities,
+      ];
+      if(isNew){
+        newQ.push(res.data);
+      } else {
+        _.set(newQ, [_.findIndex(qualities, (q)=>q.id == id), 'data'], data);
+      }
+      setQualities(newQ);
       setOpenCalc(false);
-      setNotification(NOTIFICATION_TYPE.SUCCESS, 'Quality saved successfully');
-    }).catch(()=>{
-      setNotification(NOTIFICATION_TYPE.ERROR, 'Save failure');
+      props.setNotification(NOTIFICATION_TYPE.SUCCESS, 'Quality saved successfully');
+    }).catch((err)=>{
+      props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(err));
     })
   }
 
@@ -73,9 +120,11 @@ function YarnCosting({qualities, onQualityClick}) {
         <Box className={classes.searchbar}>
           <OutlinedInput value={search} onChange={(e)=>{setSearch(e.target.value)}} style={{minWidth: '20%'}} placeholder="Search quality"/>
           <Button variant="contained" color="primary" onClick={()=>{
-            setSelId(null);
-            setOpenCalc(true);
-          }} style={{marginLeft: '0.5rem'}}>Add new</Button>
+              setSelId(null);
+              setOpenCalc(true);
+            }} style={{marginLeft: '0.5rem'}}
+            disabled={licExpired}
+          >Add new</Button>
         </Box>
         <Box className={classes.gridarea}>
           <DataGrid columns={columns} data={qualities} filterText={search}/>
@@ -86,9 +135,7 @@ function YarnCosting({qualities, onQualityClick}) {
   )
 }
 
-export default connect((state)=>({
-  qualities: state.qualities
-}), (dispatch)=>({
+export default connect(()=>({}), (dispatch)=>({
   setNotification: (...args)=>{dispatch(setNotification.apply(this, args))},
   clearNotification: ()=>{dispatch(setNotification(null, null))},
 }))(YarnCosting);

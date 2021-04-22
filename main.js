@@ -37,10 +37,12 @@ function createWindow () {
   });
 
   migrate.run();
-  app.server = server();
-
-  // and load the index.html of the app.
-  mainWin.loadURL('http://localhost:8787/');
+  getPort({port: getPort.makeRange(8000, 8999)})
+  .then((port)=>{
+    app.server = server(port);
+    // and load the index.html of the app.
+    mainWin.loadURL(`http://localhost:${port}/`);
+  });
 }
 
 app.on('ready', createWindow)

@@ -5,13 +5,13 @@ const fs = require('fs');
 let basePath = '';
 
 if(os.platform() === 'win32') {
-    basePath = path.join(os.homedir(), 'AppData', 'Local', 'DailyAttendance');
+    basePath = path.join(os.homedir(), 'AppData', 'Local', 'Calculators');
 } else {
-    basePath = path.join(os.homedir(), '.DailyAttendance');
+    basePath = path.join(os.homedir(), '.Calculators');
 }
 
 !fs.existsSync(basePath) && fs.mkdirSync(basePath);
-const configDbPath = path.resolve(basePath, 'daily-attendance.mdf');
+const configDbPath = path.resolve(basePath, 'storage.mdf');
 
 module.exports = {
     "dialect": "sqlite",

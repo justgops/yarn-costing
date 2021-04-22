@@ -1,4 +1,4 @@
-module.exports = () => {
+module.exports = (port) => {
   var express = require('express');
   var cors = require("cors");
   var path = require('path');
@@ -23,8 +23,8 @@ module.exports = () => {
   app.get('/', function (req, res) {
     res.sendFile(path.join(__dirname, 'build', 'index.html'));
   });
-  // app.use('/users', require('./routers/users'));
+  app.use('/api/qualities', require('./routers/qualities'));
+  app.use('/api/misc', require('./routers/misc'));
 
-  var port = 8787;
-  app.listen(port, console.log(`App listening at http://localhost:${port}`));
+  app.listen(port || 8787, console.log(`App listening at http://localhost:${port}/app`));
 };

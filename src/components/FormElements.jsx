@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
-import { Box, OutlinedInput, CircularProgress, Divider, FormControl, FormHelperText, FormLabel, Grid, InputAdornment, MenuItem, Popover, Select, TextField, Typography } from '@material-ui/core';
+import { Box, OutlinedInput, CircularProgress, Divider, FormControl, FormHelperText, FormLabel, Grid, InputAdornment, MenuItem, Popover, Select, TextField, Typography, IconButton } from '@material-ui/core';
 import Autocomplete from '@material-ui/lab/Autocomplete';
 import { ColorPalette, ColorButton } from 'material-ui-color';
 import HelpOutlineIcon from '@material-ui/icons/HelpOutline';
+import FileCopyOutlinedIcon from '@material-ui/icons/FileCopyOutlined';
 import clsx from 'clsx';
 
 const useStyles = makeStyles((theme) => ({
@@ -48,6 +49,7 @@ export function FormRow({children}) {
   let items = React.Children.count(children);
   let factor =  {
     1: 12,
+    2: 6,
     4: 3,
     3: 4,
     6: 2,
@@ -189,7 +191,7 @@ export class FormFieldValidator {
   }
 }
 
-export function FormInputText({InputIcon, errorMsg, required, onChange, label, readOnly, info, ...props}) {
+export function FormInputText({InputIcon, errorMsg, required, onChange, label, readOnly, info, hasCopy, ...props}) {
   const classes = useStyles();
 
   return (
@@ -200,6 +202,9 @@ export function FormInputText({InputIcon, errorMsg, required, onChange, label, r
           startAdornment={InputIcon &&
             <InputAdornment position="start">{typeof(InputIcon) === 'string'
               ? <span>{InputIcon}</span> : <InputIcon fontSize='small' />}</InputAdornment>}
+          endAdornment={hasCopy ?
+            <IconButton><FileCopyOutlinedIcon /></IconButton> : null
+          }
           fullWidth
           className={classes.formInput}
           error={Boolean(errorMsg)}
