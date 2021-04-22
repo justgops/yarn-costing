@@ -60,7 +60,7 @@
     "eject": "react-scripts eject",
     "start:electron": "yarn run electron .",
     "pack": "electron-builder --win",
-    "dist": "yarn run buildjs && yarn run pack",
+    "dist": "yarn run build && yarn run pack",
     "rebuild": "yarn run electron-rebuild -f -w",
     "postinstall": "electron-builder install-app-deps"
   },
