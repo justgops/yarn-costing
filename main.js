@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, globalShortcut } = require('electron');
+const { app, BrowserWindow, Menu, globalShortcut, dialog } = require('electron');
 const path = require('path');
 const server = require(path.resolve(__dirname, 'server.js'));
 const migrate = require(path.resolve(__dirname, 'db', 'migrate.js'));
@@ -35,6 +35,7 @@ function createWindow () {
   if(app.isPackaged) {
     mainWin.setMenu(null);
   }
+  mainWin.loadFile(path.resolve(__dirname,'loading.html'));
 
   globalShortcut.register('CommandOrControl+R', function() {
 		mainWin.reload()
@@ -46,9 +47,13 @@ function createWindow () {
   migrate.run();
   getPort({port: getPort.makeRange(8000, 8999)})
   .then((port)=>{
+    // alert('Running on port - ' + port.toString());
+    dialog.showMessageBox('Success', 'Running on port - ' + port.toString());
     app.server = server(port);
     // and load the index.html of the app.
     mainWin.loadURL(`http://localhost:${port}/`);
+  }).catch((e)=>{
+    dialog.showErrorBox('Failed', 'Failed to get port', e);
   });
 }
 

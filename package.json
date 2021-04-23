@@ -7,7 +7,6 @@
   "proxy": "http://localhost:8787",
   "private": true,
   "build": {
-    "extends": null,
     "appId": "com.yantra.costing",
     "copyright": "Copyright © 2020 Yantra",
     "nsis": {
@@ -25,14 +24,15 @@
         }
       ],
       "icon": "app.ico"
-    },
-    "files": [
-      "*.js",
-      "./build/**/*",
-      "./db/**/*",
-      "./routers/**/*"
-    ]
+    }
+
   },
+  "files": [
+    "*.js",
+    "./build/**/*",
+    "./db/**/*",
+    "./routers/**/*"
+  ],
   "dependencies": {
     "@material-ui/core": "^4.11.3",
     "@material-ui/icons": "^4.11.2",
@@ -50,7 +50,6 @@
     "react-dom": "^17.0.1",
     "react-redux": "^7.2.2",
     "react-router-dom": "^5.2.0",
-    "react-scripts": "4.0.3",
     "react-table": "^7.6.3",
     "redux": "^4.0.5",
     "sequelize": "^6.6.2",
@@ -91,6 +90,7 @@
   "devDependencies": {
     "electron": "^12.0.5",
     "electron-builder": "^22.10.5",
-    "electron-rebuild": "^2.3.5"
+    "electron-rebuild": "^2.3.5",
+    "react-scripts": "4.0.3"
   }
 }
