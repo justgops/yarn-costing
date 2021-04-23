@@ -30,15 +30,17 @@ function createWindow () {
         { label: "Toggle Dev tools", click: function() { mainWin.webContents.toggleDevTools();}}
     ]}
   ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 
   if(app.isPackaged) {
-    Menu.setApplicationMenu(false);
-  } else {
-    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+    mainWin.setMenu(null);
   }
 
   globalShortcut.register('CommandOrControl+R', function() {
 		mainWin.reload()
+  });
+  globalShortcut.register('Control+Shift+D', function() {
+		mainWin.webContents.openDevTools({mode: 'detach'});
   });
 
   migrate.run();

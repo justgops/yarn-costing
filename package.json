@@ -1,13 +1,15 @@
 {
-  "name": "yarn-costing",
+  "name": "costing",
+  "productName": "Costing",
   "version": "0.1.0",
   "main": "main.js",
-  "appName": "Costing",
   "//homepage": "demo/calculator/",
   "proxy": "http://localhost:8787",
   "private": true,
   "build": {
     "extends": null,
+    "appId": "com.yantra.costing",
+    "copyright": "Copyright © 2020 Yantra",
     "nsis": {
       "oneClick": false,
       "perMachine": true

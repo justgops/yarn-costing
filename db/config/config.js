@@ -7,9 +7,9 @@ const packageJson = require(path.resolve(__dirname, '..', '..','package.json'));
 let basePath = '';
 
 if(os.platform() === 'win32') {
-    basePath = path.join(os.homedir(), 'AppData', 'Local', packageJson.appName);
+    basePath = path.join(os.homedir(), 'AppData', 'Local', packageJson.productName);
 } else {
-    basePath = path.join(os.homedir(), '.' + packageJson.appName);
+    basePath = path.join(os.homedir(), '.' + packageJson.productName);
 }
 
 
