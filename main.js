@@ -52,8 +52,9 @@ function createWindow () {
     app.server = server(port);
     // and load the index.html of the app.
     mainWin.loadURL(`http://localhost:${port}/`);
-  }).catch((e)=>{
-    dialog.showErrorBox('Failed', 'Failed to get port', e);
+  }).catch((err)=>{
+    console.log(err.stack);
+    dialog.showErrorBox('Failed', 'Failed to get port' + err.stack);
   });
 }
 

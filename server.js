@@ -6,7 +6,6 @@ module.exports = (port) => {
   var exphbs  = require('express-handlebars');
 
   app = express();
-
   // app.set('views', path.resolve(__dirname, 'views', 'pages'));
   app.engine('html', exphbs());
   app.set('view engine', 'html');
