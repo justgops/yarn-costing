@@ -25,12 +25,14 @@
         }
       ],
       "icon": "app.ico"
-    }
+    },
+    "files": [
+      "*.js",
+      "./build/**/*",
+      "./db/**/*",
+      "./routers/**/*"
+    ]
   },
-  "files": [
-    "*.js",
-    "build"
-  ],
   "dependencies": {
     "@material-ui/core": "^4.11.3",
     "@material-ui/icons": "^4.11.2",
