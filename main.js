@@ -31,7 +31,11 @@ function createWindow () {
     ]}
   ];
 
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  if(app.isPackaged) {
+    Menu.setApplicationMenu(false);
+  } else {
+    Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+  }
 
   globalShortcut.register('CommandOrControl+R', function() {
 		mainWin.reload()
