@@ -47,14 +47,11 @@ function createWindow () {
   migrate.run();
   getPort({port: getPort.makeRange(8000, 8999)})
   .then((port)=>{
-    // alert('Running on port - ' + port.toString());
-    dialog.showMessageBox('Success', 'Running on port - ' + port.toString());
     app.server = server(port);
     // and load the index.html of the app.
     mainWin.loadURL(`http://localhost:${port}/`);
   }).catch((err)=>{
-    console.log(err.stack);
-    dialog.showErrorBox('Failed', 'Failed to get port' + err.stack);
+    dialog.showErrorBox('Failed', 'Failed to start app -' + err.stack);
   });
 }
 

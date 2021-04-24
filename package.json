@@ -30,7 +30,8 @@
       "*.js",
       "./build/**/*",
       "./db/**/*",
-      "./routers/**/*"
+      "./routers/**/*",
+      "./src/utils.js"
     ]
   },
   "dependencies": {
