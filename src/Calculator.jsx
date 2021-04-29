@@ -8,6 +8,17 @@ import { FormRowItem, FormInputText, FormRow } from './components/FormElements';
 import DeleteForeverRoundedIcon from '@material-ui/icons/DeleteForeverRounded';
 import CloseOutlinedIcon from '@material-ui/icons/CloseOutlined';
 
+const ROUND_DECIMAL = 3;
+
+function parse(num) {
+  if(!isNaN(num)) {
+    num = Math.round(num + "e" + ROUND_DECIMAL);
+    return Number(num + "e" + -ROUND_DECIMAL);
+  } else {
+    return Number(0.0);
+  }
+}
+
 const useStyles = makeStyles((theme)=>({
   root: {
     display: 'flex',
@@ -43,7 +54,7 @@ const formReducer = (state, action)=>{
     case 'set_value':
       _.set(newState, action.path, action.value);
       if(action.gridReducer) {
-        newState = action.gridReducer(newState, true);
+        newState = action.gridReducer(newState);
       }
       break;
     case 'add_grid_row':
@@ -51,7 +62,7 @@ const formReducer = (state, action)=>{
       rows.push(action.value);
       _.set(newState, action.path, rows);
       if(action.gridReducer) {
-        newState = action.gridReducer(newState);
+        newState = action.gridReducer(newState, true);
       }
       break;
     case 'remove_grid_row':
@@ -59,53 +70,76 @@ const formReducer = (state, action)=>{
       rows.splice(action.value, 1);
       _.set(newState, action.path, rows);
       if(action.gridReducer) {
-        newState = action.gridReducer(newState);
+        newState = action.gridReducer(newState, true);
       }
       break;
   }
+
+  newState.actual_cost = 0;
+  newState.total_weight = parse(newState.warp_weight + newState.weft_weight);
+  newState.total_weight_wastage = parse(newState.warp_weight_wastage + newState.weft_weight_wastage);
+
+  for(let row of newState['warps'] || []) {
+    newState.actual_cost  += row.cost + row.sizing_cost;
+  }
+  for(let row of newState['wefts'] || []) {
+    newState.actual_cost  += row.cost;
+  }
+  newState.actual_cost += newState.weaving_charges;
+  newState.actual_cost = parse(newState.actual_cost);
   return newState;
 }
 
-const warpGridReducer = (state)=>{
+const warpGridReducer = (state, rowsChange=false)=>{
+  state.warp_total_ends =  parse(state.warp_reed) * (parse(state.warp_panna) + parse(state.warp_reed_space));
+  state.warp_weight = 0.0;
+  state.warp_weight_wastage = 0.0;
+
   let gridValue = state['warps'];
   if(!gridValue) return state;
 
   let perct = (100/gridValue.length);
-  state.warp_total_ends = state.warp_reed * (state.warp_panna + state.warp_reed_space);
-  state.warp_weight = 0;
+
   for(let row of gridValue) {
-    row.perct = perct;
-    let temp = (
-      state.warp_total_ends * state.warp_lassa_yards/(1852)/row.count/state.warp_metre)
-        *(row.perct/100);
+    row.perct = rowsChange ? perct : row.perct;
+    let weight =
+      parse((state.warp_total_ends * parse(state.warp_lassa_yards)/(1852)/parse(row.count)/parse(state.warp_metre))
+        * parse(row.perct)/100);
 
-    row.weight = temp + (row.wastage * temp)/100;
-    state.warp_weight += row.weight;
+    row.weight = parse(weight + (parse(row.wastage) * weight)/100);
+    state.warp_weight += weight;
+    state.warp_weight_wastage += row.weight;
 
-    row.cost = row.weight * row.rate;
-    row.sizing_cost = row.weight * row.sizing_rate;
+    row.cost = parse(row.weight * parse(row.rate));
+    row.sizing_cost = parse(row.weight * parse(row.sizing_rate));
   }
+
+  state.warp_weight = parse(state.warp_weight);
+  state.warp_weight_wastage = parse(state.warp_weight_wastage);
 
   return state;
 }
 
-const weftGridReducer = (state)=>{
+const weftGridReducer = (state, rowsChange)=>{
+  state.weaving_charges = parse(state.weft_pick) * parse(state.weft_job_rate)/100;
+  state.weft_weight = 0;
+  state.weft_weight_wastage = 0;
+
   let gridValue = state['wefts'];
   if(!gridValue) return state;
 
   let perct = (100/gridValue.length);
-  state.weaving_charges = state.weft_peek * state.weft_job_rate;
-  state.weft_weight = 0;
   for(let row of gridValue) {
-    row.perct = perct;
-    let temp =
-      (state.weft_metre * (state.weft_panna + state.weft_reed_space) * state.weft_peek/(1693.33*row.count))
-        *(row.perct/100);
+    row.perct = rowsChange ? perct : row.perct;
+    let weight =
+      parse((parse(state.weft_metre) * (parse(state.weft_panna) + parse(state.weft_reed_space)) * parse(state.weft_pick)/(1693.33*row.count))
+        *parse(row.perct)/100);
 
-    row.weight = temp + (row.wastage * temp)/100;
-    state.weft_weight += row.weight;
+    row.weight = parse(weight + (parse(row.wastage) * weight)/100);
+    state.weft_weight += weight;
+    state.weft_weight_wastage += row.weight;
 
-    row.cost = row.weight * row.rate;
+    row.cost = parse(row.weight * parse(row.rate));
   }
 
   return state;
@@ -140,11 +174,11 @@ function getGridCols(basePath, formDispatch, gridReducer, otherCols, cellClassNa
       Header: col.Header,
       accessor: col.accessor,
       Footer: col.showTotal ? (info)=>{
-        const total = React.useMemo(
-          () =>
-            info.rows.reduce((sum, row) => (row.values[col.accessor] || 0) + sum, 0),
-          [info.rows]
-        )
+        let total = info.rows.reduce((sum, row) => {
+            return (row.values[col.accessor] || 0) + sum
+          }, 0
+        );
+        total = parse(total);
         return <OutlinedInput fullWidth inputProps={{style: {fontWeight: 'bold'}}} className={cellClassName} value={total} type="number" readOnly={true} />
       } : '',
       Cell: ({value, row, column})=>{
@@ -173,7 +207,9 @@ function Calculator({open, onClose, onSave, data}) {
   useEffect(()=>{
     formDispatch({
       type: 'init',
-      value: data || {},
+      value: data || {
+        weft_metre: 1,
+      },
     });
   }, [data]);
 
@@ -241,7 +277,7 @@ function Calculator({open, onClose, onSave, data}) {
       Footer: 'check;',
     },
     {
-      Header: 'Weight',
+      Header: 'Weight(w/wastage)',
       accessor: 'weight',
       readOnly: true,
       showTotal: true,
@@ -278,7 +314,7 @@ function Calculator({open, onClose, onSave, data}) {
       accessor: 'rate',
     },
     {
-      Header: 'Weight',
+      Header: 'Weight(w/wastage)',
       accessor: 'weight',
       readOnly: true,
       showTotal: true,
@@ -346,7 +382,7 @@ function Calculator({open, onClose, onSave, data}) {
                       required errorMsg={formDataErr.warp_lassa_yards} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
-                    <FormInputText type="number" label="Metre" name='warp_metre' value={formData.warp_metre}
+                    <FormInputText type="number" label="Lassa(Metre)" name='warp_metre' value={formData.warp_metre}
                       required errorMsg={formDataErr.warp_metre} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
@@ -382,8 +418,8 @@ function Calculator({open, onClose, onSave, data}) {
                       required errorMsg={formDataErr.reed_space} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
-                    <FormInputText type="number" label="Peek" name='weft_peek' value={formData.weft_peek}
-                      required errorMsg={formDataErr.weft_peek} onChange={onWeftTextChange} />
+                    <FormInputText type="number" label="Pick" name='weft_pick' value={formData.weft_pick}
+                      required errorMsg={formDataErr.weft_pick} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Job rate" name='weft_job_rate' value={formData.weft_job_rate}
