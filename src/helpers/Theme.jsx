@@ -22,6 +22,10 @@ const globalTheme = createMuiTheme({
 });
 
 export const theme = createMuiTheme({
+    transitions: {
+        // So we have `transition: none;` everywhere
+        create: () => 'none',
+    },
     mixins: {
         ...globalTheme.mixins,
         border: '1px solid '+globalTheme.palette.grey[300]

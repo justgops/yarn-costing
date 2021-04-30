@@ -53,44 +53,50 @@ const formReducer = (state, action)=>{
       break;
     case 'set_value':
       _.set(newState, action.path, action.value);
-      if(action.gridReducer) {
-        newState = action.gridReducer(newState);
+      if(action.postReducer) {
+        newState = action.postReducer(newState);
       }
       break;
     case 'add_grid_row':
       rows = _.get(newState, action.path, []);
       rows.push(action.value);
       _.set(newState, action.path, rows);
-      if(action.gridReducer) {
-        newState = action.gridReducer(newState, true);
+      if(action.postReducer) {
+        newState = action.postReducer(newState, true);
       }
       break;
     case 'remove_grid_row':
       rows = _.get(newState, action.path, []);
       rows.splice(action.value, 1);
       _.set(newState, action.path, rows);
-      if(action.gridReducer) {
-        newState = action.gridReducer(newState, true);
+      if(action.postReducer) {
+        newState = action.postReducer(newState, true);
       }
       break;
   }
 
-  newState.actual_cost = 0;
-  newState.total_weight = parse(newState.warp_weight + newState.weft_weight);
-  newState.total_weight_wastage = parse(newState.warp_weight_wastage + newState.weft_weight_wastage);
-
-  for(let row of newState['warps'] || []) {
-    newState.actual_cost  += row.cost + row.sizing_cost;
-  }
-  for(let row of newState['wefts'] || []) {
-    newState.actual_cost  += row.cost;
-  }
-  newState.actual_cost += newState.weaving_charges;
-  newState.actual_cost = parse(newState.actual_cost);
+  newState = globalReducer(newState);
+  newState = rateReducer(newState);
   return newState;
 }
 
-const warpGridReducer = (state, rowsChange=false)=>{
+const globalReducer = (state)=>{
+  state.actual_cost = 0;
+  state.total_weight = parse(state.warp_weight + state.weft_weight);
+  state.total_weight_wastage = parse(state.warp_weight_wastage + state.weft_weight_wastage);
+
+  for(let row of state['warps'] || []) {
+    state.actual_cost  += row.cost + row.sizing_cost;
+  }
+  for(let row of state['wefts'] || []) {
+    state.actual_cost  += row.cost;
+  }
+  state.actual_cost += state.weaving_charges;
+  state.actual_cost = parse(state.actual_cost);
+  return state;
+}
+
+const warppostReducer = (state, rowsChange=false)=>{
   state.warp_total_ends =  parse(state.warp_reed) * (parse(state.warp_panna) + parse(state.warp_reed_space));
   state.warp_weight = 0.0;
   state.warp_weight_wastage = 0.0;
@@ -103,7 +109,7 @@ const warpGridReducer = (state, rowsChange=false)=>{
   for(let row of gridValue) {
     row.perct = rowsChange ? perct : row.perct;
     let weight =
-      parse((state.warp_total_ends * parse(state.warp_lassa_yards)/(1852)/parse(row.count)/parse(state.warp_metre))
+      parse((state.warp_total_ends * parse(state.warp_meter)/1693.33/parse(row.count)/parse(state.warp_ltol))
         * parse(row.perct)/100);
 
     row.weight_wastage = parse(weight + (parse(row.wastage) * weight)/100);
@@ -120,7 +126,7 @@ const warpGridReducer = (state, rowsChange=false)=>{
   return state;
 }
 
-const weftGridReducer = (state, rowsChange)=>{
+const weftpostReducer = (state, rowsChange)=>{
   state.weaving_charges = parse(state.weft_pick) * parse(state.weft_job_rate)/100;
   state.weft_weight = 0;
   state.weft_weight_wastage = 0;
@@ -145,7 +151,25 @@ const weftGridReducer = (state, rowsChange)=>{
   return state;
 }
 
-function getGridCols(basePath, formDispatch, gridReducer, otherCols, cellClassName) {
+const rateReducer = (state)=>{
+  state.rate_out_rs = parse(state.actual_cost + state.actual_cost * parse(state.rate_out_per)/100);
+  state.rate_local_rs = parse(state.actual_cost + state.actual_cost * parse(state.rate_local_per)/100);
+
+  state.profit_out_per = parse((parse(state.dem_rate_out_rs) - state.actual_cost)/state.actual_cost*100);
+  state.profit_local_per = parse((parse(state.dem_rate_local_rs) - state.actual_cost)/state.actual_cost*100);
+
+  state.job_rate_out = parse((
+    (parse(state.dem_rate_out_rs)*100/(1+parse(state.rate_out_per)))-state.actual_cost+state.weaving_charges
+  )/parse(state.weft_pick)*100);
+  state.job_rate_local = parse((
+    (parse(state.dem_rate_local_rs)*100/(1+parse(state.rate_local_per)))-state.actual_cost+state.weaving_charges
+  )/parse(state.weft_pick)*100);
+
+  return state;
+}
+
+
+function getGridCols(basePath, formDispatch, postReducer, otherCols, cellClassName) {
   let baseCols = [{
     Header: '',
     id: 'id',
@@ -163,7 +187,7 @@ function getGridCols(basePath, formDispatch, gridReducer, otherCols, cellClassNa
           type: 'remove_grid_row',
           path: basePath,
           value: row.index,
-          gridReducer: gridReducer,
+          postReducer: postReducer,
         });
       }}><DeleteForeverRoundedIcon /></IconButton>
     }
@@ -188,7 +212,7 @@ function getGridCols(basePath, formDispatch, gridReducer, otherCols, cellClassNa
             type: 'set_value',
             path: basePath.concat([row.index, column.id]),
             value: value,
-            gridReducer: gridReducer,
+            postReducer: postReducer,
           });
         }} />
       }
@@ -219,6 +243,7 @@ function Calculator({open, onClose, onSave, data}) {
       name = e.target.name;
       value = e.target.value;
     }
+
     formDispatch({
       type: 'set_value',
       path: name,
@@ -232,11 +257,26 @@ function Calculator({open, onClose, onSave, data}) {
       name = e.target.name;
       value = e.target.value;
     }
+
+    // if(name === 'warp_ltol') {
+    //   formDispatch({
+    //     type: 'set_value',
+    //     path: 'warp_meter',
+    //     value: parse(value/0.9144),
+    //   });
+    // } else if(name === 'warp_meter') {
+    //   formDispatch({
+    //     type: 'set_value',
+    //     path: 'warp_ltol',
+    //     value: parse(value*0.9144),
+    //   });
+    // }
+
     formDispatch({
       type: 'set_value',
       path: name,
       value: value,
-      gridReducer: warpGridReducer,
+      postReducer: warppostReducer,
     });
   });
 
@@ -250,11 +290,25 @@ function Calculator({open, onClose, onSave, data}) {
       type: 'set_value',
       path: name,
       value: value,
-      gridReducer: weftGridReducer,
+      postReducer: weftpostReducer,
     });
   });
 
-  const warpCols = useMemo(()=>getGridCols(['warps'], formDispatch, warpGridReducer, [
+  const onRateChange = useCallback((e, name) => {
+    let value = e;
+    if(e && e.target) {
+      name = e.target.name;
+      value = e.target.value;
+    }
+    formDispatch({
+      type: 'set_value',
+      path: name,
+      value: value,
+      postReducer: rateReducer,
+    });
+  });
+
+  const warpCols = useMemo(()=>getGridCols(['warps'], formDispatch, warppostReducer, [
     {
       Header: 'Count',
       accessor: 'count',
@@ -296,7 +350,7 @@ function Calculator({open, onClose, onSave, data}) {
     },
   ], classes.gridCell), []);
 
-  const weftCols = useMemo(()=>getGridCols(['wefts'], formDispatch, weftGridReducer, [
+  const weftCols = useMemo(()=>getGridCols(['wefts'], formDispatch, weftpostReducer, [
     {
       Header: 'Count',
       accessor: 'count',
@@ -351,7 +405,7 @@ function Calculator({open, onClose, onSave, data}) {
         <FormRow>
           <FormRowItem>
             <FormInputText autoFocus label="Name" name='name' value={formData.name}
-              required errorMsg={formDataErr.name} onChange={onTextChange} />
+               errorMsg={formDataErr.name} onChange={onTextChange} />
           </FormRowItem>
           <FormRowItem>
             <FormInputText label="Notes" name='notes' value={formData.notes}
@@ -367,23 +421,23 @@ function Calculator({open, onClose, onSave, data}) {
                 <FormRow>
                   <FormRowItem>
                     <FormInputText type="number" type="number" label="Reed" name='warp_reed' value={formData.warp_reed}
-                      required errorMsg={formDataErr.warp_reed} onChange={onWarpTextChange} />
+                       errorMsg={formDataErr.warp_reed} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Panna" name='warp_panna' value={formData.warp_panna}
-                      required errorMsg={formDataErr.warp_panna} onChange={onWarpTextChange} />
+                       errorMsg={formDataErr.warp_panna} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Reed space" name='warp_reed_space' value={formData.warp_reed_space}
-                      required errorMsg={formDataErr.warp_reed_space} onChange={onWarpTextChange} />
+                       errorMsg={formDataErr.warp_reed_space} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
-                    <FormInputText type="number" label="Lassa(Yards)" name='warp_lassa_yards' value={formData.warp_lassa_yards}
-                      required errorMsg={formDataErr.warp_lassa_yards} onChange={onWarpTextChange} />
+                    <FormInputText type="number" label="Lassa(Meters)" name='warp_meter' value={formData.warp_meter}
+                       errorMsg={formDataErr.warp_meter} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
-                    <FormInputText type="number" label="Lassa(Metre)" name='warp_metre' value={formData.warp_metre}
-                      required errorMsg={formDataErr.warp_metre} onChange={onWarpTextChange} />
+                    <FormInputText type="number" label="L to L" name='warp_ltol' value={formData.warp_ltol}
+                       errorMsg={formDataErr.warp_ltol} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Total ends" name='warp_total_ends' value={formData.warp_total_ends}
@@ -397,7 +451,7 @@ function Calculator({open, onClose, onSave, data}) {
                   type: 'add_grid_row',
                   path: 'warps',
                   value: getDefaultRow(warpCols),
-                  gridReducer: warpGridReducer,
+                  postReducer: warppostReducer,
                 });
               }}>Add warp</Button>
               <Divider style={{marginTop: '0.5rem'}} />
@@ -407,23 +461,23 @@ function Calculator({open, onClose, onSave, data}) {
                 <FormRow>
                   <FormRowItem>
                     <FormInputText type="number" label="Metre" name='weft_metre' value={formData.weft_metre}
-                      required errorMsg={formDataErr.weft_metre} onChange={onWeftTextChange} />
+                       errorMsg={formDataErr.weft_metre} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Panna" name='weft_panna' value={formData.weft_panna}
-                      required errorMsg={formDataErr.panna} onChange={onWeftTextChange} />
+                       errorMsg={formDataErr.panna} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Reed space" name='weft_reed_space' value={formData.weft_reed_space}
-                      required errorMsg={formDataErr.reed_space} onChange={onWeftTextChange} />
+                       errorMsg={formDataErr.reed_space} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Pick" name='weft_pick' value={formData.weft_pick}
-                      required errorMsg={formDataErr.weft_pick} onChange={onWeftTextChange} />
+                       errorMsg={formDataErr.weft_pick} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Job rate" name='weft_job_rate' value={formData.weft_job_rate}
-                      required errorMsg={formDataErr.weft_job_rate} onChange={onWeftTextChange} />
+                       errorMsg={formDataErr.weft_job_rate} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Weaving charges" name='weaving_charges' value={formData.weaving_charges}
@@ -437,9 +491,58 @@ function Calculator({open, onClose, onSave, data}) {
                   type: 'add_grid_row',
                   path: 'wefts',
                   value: getDefaultRow(weftCols),
-                  gridReducer: weftGridReducer,
+                  postReducer: weftpostReducer,
                 });
               }}>Add weft</Button>
+              <Divider style={{marginTop: '0.5rem'}} />
+              <Typography variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Rates</Typography>
+              <Divider />
+              <Box style={{padding: '0.5rem'}}>
+                <FormRow>
+                  <FormRowItem>
+                    <FormInputText type="number" label="Rate(out) %" name='rate_out_per' value={formData.rate_out_per}
+                       errorMsg={formDataErr.rate_out_per} onChange={onRateChange} />
+                  </FormRowItem>
+                  <FormRowItem>
+                    <FormInputText type="number" label="Rs" name='rate_out_rs' value={formData.rate_out_rs}
+                       errorMsg={formDataErr.rate_out_rs} onChange={onRateChange} readOnly/>
+                  </FormRowItem>
+                  <FormRowItem>
+                    <FormInputText type="number" label="Demanded rate(out)" name='dem_rate_out_rs' value={formData.dem_rate_out_rs}
+                       errorMsg={formDataErr.dem_rate_out_rs} onChange={onRateChange} />
+                  </FormRowItem>
+                  <FormRowItem>
+                    <FormInputText type="number" label="Profit(out) %" name='profit_out_per' value={formData.profit_out_per}
+                       errorMsg={formDataErr.profit_out_per} onChange={onRateChange} readOnly/>
+                  </FormRowItem>
+                  <FormRowItem>
+                    <FormInputText type="number" label="Job rate(out) %" name='job_rate_out' value={formData.job_rate_out}
+                       errorMsg={formDataErr.job_rate_out} onChange={onRateChange} readOnly/>
+                  </FormRowItem>
+                </FormRow>
+                <FormRow>
+                  <FormRowItem>
+                    <FormInputText type="number" label="Rate(local) %" name='rate_local_per' value={formData.rate_local_per}
+                       errorMsg={formDataErr.rate_local_per} onChange={onRateChange} />
+                  </FormRowItem>
+                  <FormRowItem>
+                    <FormInputText type="number" label="Rs" name='rate_local_rs' value={formData.rate_local_rs}
+                       errorMsg={formDataErr.rate_local_rs} onChange={onRateChange} readOnly/>
+                  </FormRowItem>
+                  <FormRowItem>
+                    <FormInputText type="number" label="Demanded rate(local)" name='dem_rate_local_rs' value={formData.dem_rate_local_rs}
+                       errorMsg={formDataErr.dem_rate_local_rs} onChange={onRateChange} />
+                  </FormRowItem>
+                  <FormRowItem>
+                    <FormInputText type="number" label="Profit(local)" name='profit_local_per' value={formData.profit_local_per}
+                       errorMsg={formDataErr.profit_local_per} onChange={onRateChange} readOnly/>
+                  </FormRowItem>
+                  <FormRowItem>
+                    <FormInputText type="number" label="Job rate(local)" name='job_rate_local' value={formData.job_rate_local}
+                       errorMsg={formDataErr.job_rate_local} onChange={onRateChange} readOnly/>
+                  </FormRowItem>
+                </FormRow>
+              </Box>
             </Paper>
           </Grid>
           <Grid item sm={12} md={12} lg={2} xl={2}>

@@ -66,7 +66,6 @@ function FabricCosting(props) {
       id: 'name',
       accessor: (originalRow)=>originalRow.data.name,
       Cell: ({value, row})=>{
-        console.log(value);
         return <Link onClick={()=>{
           if(licExpired) return;
           setSelId({
@@ -128,7 +127,7 @@ function FabricCosting(props) {
           >Add new</Button>
         </Box>
         <Box className={classes.gridarea}>
-          <DataGrid columns={columns} data={qualities} filterText={search}/>
+          <DataGrid columns={columns} data={qualities} filterText={search} fixedLayout={true}/>
         </Box>
       </Box>
       <Calculator open={openCalc} onClose={()=>setOpenCalc(false)} onSave={onSave} data={selId} />

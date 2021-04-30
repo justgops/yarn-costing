@@ -52,6 +52,7 @@ export function FormRow({children}) {
     2: 6,
     4: 3,
     3: 4,
+    5: 2,
     6: 2,
   }
   sizingProps['md'] = sizingProps['sm'] = sizingProps['lg'] = factor[items] || 12;

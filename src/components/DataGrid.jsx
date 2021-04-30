@@ -1,6 +1,6 @@
 import { makeStyles } from '@material-ui/core'
 import React, { useEffect } from 'react'
-import { useGlobalFilter, useTable } from 'react-table';
+import { useFlexLayout, useGlobalFilter, useTable } from 'react-table';
 import clsx from 'clsx';
 
 const useStyles = makeStyles((theme)=>({
@@ -10,6 +10,9 @@ const useStyles = makeStyles((theme)=>({
     overflow: 'auto',
     border: theme.mixins.border,
   },
+  fixedLayout: {
+    tableLayout: 'fixed',
+  },
   tableCell: {
     margin: 0,
     textAlign: 'left',
@@ -17,11 +20,10 @@ const useStyles = makeStyles((theme)=>({
     padding: theme.spacing(1),
     borderRight: theme.mixins.border,
     borderBottom: theme.mixins.border,
-    width: '50%',
   },
 }));
 
-export default function DataGrid({ columns, data, filterText, showFooter=false, tdClassName }) {
+export default function DataGrid({ columns, data, filterText, showFooter=false, tdClassName, fixedLayout=false }) {
   const classes = useStyles();
   // Use the state and functions returned from useTable to build your UI
   const {
@@ -43,7 +45,7 @@ export default function DataGrid({ columns, data, filterText, showFooter=false, 
 
   // Render the UI for your table
   return (
-    <table {...getTableProps()} className={classes.grid}>
+    <table {...getTableProps()} className={clsx(classes.grid, fixedLayout ? classes.fixedLayout : null)}>
       <thead>
         {headerGroups.map(headerGroup => (
           <tr {...headerGroup.getHeaderGroupProps()}>

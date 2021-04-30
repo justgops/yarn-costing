@@ -49,7 +49,8 @@ router.post('/init', function(req, res) {
   si.system()
   .then((data)=>{
     system_id = system_id + data.uuid + data.serial + data.sku;
-    system_id = system_id.replace(/[^A-Z]*/g, '');
+
+    system_id = system_id.replace(/[^A-Za-z]*/g, '');
     system_id = toQWERTY(system_id);
 
     /* Update the DB, create if no entry */
@@ -61,17 +62,23 @@ router.post('/init', function(req, res) {
       let currEpochEnc = encrypt(currEpoch, system_id);
 
       if(data) {
-        try {
-          retJson = {
-            install_date: decrypt(data.install_date_enc, data.system_id),
-            activation_date: data.activation_date_enc ? decrypt(data.activation_date_enc, data.system_id) : null,
-            system_id: data.system_id,
-            activation_key: data.activation_key,
-          };
-          res.status(200).json(retJson);
-        } catch (error) {
-          res.status(403).json({message: 'It seems the software data is tampered. Unauthorised access !!'});
-        }
+        db.Misc.update({
+          system_id: system_id,
+        }, {
+          where: {}
+        }).then(()=>{
+          try {
+            retJson = {
+              install_date: decrypt(data.install_date_enc, data.system_id),
+              activation_date: data.activation_date_enc ? decrypt(data.activation_date_enc, data.system_id) : null,
+              system_id: system_id,
+              activation_key: data.activation_key,
+            };
+            res.status(200).json(retJson);
+          } catch(e) {
+            res.status(500).json({message: 'Unexpected error occured. Contact software provided.'})
+          }
+        });
       } else {
         db.Misc.create({
           install_date_enc: currEpochEnc,
