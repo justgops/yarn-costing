@@ -96,7 +96,7 @@ const globalReducer = (state)=>{
   return state;
 }
 
-const warppostReducer = (state, rowsChange=false)=>{
+const warpPostReducer = (state, rowsChange=false)=>{
   state.warp_total_ends =  parse(state.warp_reed) * (parse(state.warp_panna) + parse(state.warp_reed_space));
   state.warp_weight = 0.0;
   state.warp_weight_wastage = 0.0;
@@ -126,7 +126,7 @@ const warppostReducer = (state, rowsChange=false)=>{
   return state;
 }
 
-const weftpostReducer = (state, rowsChange)=>{
+const weftPostReducer = (state, rowsChange)=>{
   state.weaving_charges = parse(state.weft_pick) * parse(state.weft_job_rate)/100;
   state.weft_weight = 0;
   state.weft_weight_wastage = 0;
@@ -258,25 +258,11 @@ function Calculator({open, onClose, onSave, data}) {
       value = e.target.value;
     }
 
-    // if(name === 'warp_ltol') {
-    //   formDispatch({
-    //     type: 'set_value',
-    //     path: 'warp_meter',
-    //     value: parse(value/0.9144),
-    //   });
-    // } else if(name === 'warp_meter') {
-    //   formDispatch({
-    //     type: 'set_value',
-    //     path: 'warp_ltol',
-    //     value: parse(value*0.9144),
-    //   });
-    // }
-
     formDispatch({
       type: 'set_value',
       path: name,
       value: value,
-      postReducer: warppostReducer,
+      postReducer: warpPostReducer,
     });
   });
 
@@ -290,7 +276,7 @@ function Calculator({open, onClose, onSave, data}) {
       type: 'set_value',
       path: name,
       value: value,
-      postReducer: weftpostReducer,
+      postReducer: weftPostReducer,
     });
   });
 
@@ -308,7 +294,7 @@ function Calculator({open, onClose, onSave, data}) {
     });
   });
 
-  const warpCols = useMemo(()=>getGridCols(['warps'], formDispatch, warppostReducer, [
+  const warpCols = useMemo(()=>getGridCols(['warps'], formDispatch, warpPostReducer, [
     {
       Header: 'Count',
       accessor: 'count',
@@ -350,7 +336,7 @@ function Calculator({open, onClose, onSave, data}) {
     },
   ], classes.gridCell), []);
 
-  const weftCols = useMemo(()=>getGridCols(['wefts'], formDispatch, weftpostReducer, [
+  const weftCols = useMemo(()=>getGridCols(['wefts'], formDispatch, weftPostReducer, [
     {
       Header: 'Count',
       accessor: 'count',
@@ -451,7 +437,7 @@ function Calculator({open, onClose, onSave, data}) {
                   type: 'add_grid_row',
                   path: 'warps',
                   value: getDefaultRow(warpCols),
-                  postReducer: warppostReducer,
+                  postReducer: warpPostReducer,
                 });
               }}>Add warp</Button>
               <Divider style={{marginTop: '0.5rem'}} />
@@ -491,7 +477,7 @@ function Calculator({open, onClose, onSave, data}) {
                   type: 'add_grid_row',
                   path: 'wefts',
                   value: getDefaultRow(weftCols),
-                  postReducer: weftpostReducer,
+                  postReducer: weftPostReducer,
                 });
               }}>Add weft</Button>
               <Divider style={{marginTop: '0.5rem'}} />
@@ -516,7 +502,7 @@ function Calculator({open, onClose, onSave, data}) {
                        errorMsg={formDataErr.profit_out_per} onChange={onRateChange} readOnly/>
                   </FormRowItem>
                   <FormRowItem>
-                    <FormInputText type="number" label="Job rate(out) %" name='job_rate_out' value={formData.job_rate_out}
+                    <FormInputText type="number" label="Job rate(out)" name='job_rate_out' value={formData.job_rate_out}
                        errorMsg={formDataErr.job_rate_out} onChange={onRateChange} readOnly/>
                   </FormRowItem>
                 </FormRow>
