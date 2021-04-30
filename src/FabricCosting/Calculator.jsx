@@ -667,6 +667,7 @@ function PrintPage({printRef, formData, warpCols, weftCols}) {
               <PrintField margin label="Panna" value={formData.warp_panna} />
               <PrintField margin label="Reed space" value={formData.warp_reed_space} />
               <PrintField margin label="Lassa(Meters)" value={formData.warp_meter} />
+              <PrintField margin label="L to L" value={formData.warp_ltol} />
               <PrintField margin label="Total ends" value={formData.warp_total_ends} />
             </Box>
             <DataGrid columns={warpCols} data={formData.warps} showFooter={true} print={true}/>
