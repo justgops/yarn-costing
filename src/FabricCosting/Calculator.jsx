@@ -670,7 +670,7 @@ function PrintPage({printRef, formData, warpCols, weftCols}) {
               <PrintField margin label="L to L" value={formData.warp_ltol} />
               <PrintField margin label="Total ends" value={formData.warp_total_ends} />
             </Box>
-            <DataGrid columns={warpCols} data={formData.warps} showFooter={true} print={true}/>
+            <DataGrid columns={warpCols} data={formData.warps || []} showFooter={true} print={true}/>
           </Box>
           <Box>
             <Box textAlign="center">
@@ -684,7 +684,7 @@ function PrintPage({printRef, formData, warpCols, weftCols}) {
               <PrintField margin label="Job rate (paise)" value={formData.weft_job_rate} />
               <PrintField margin label="Weaving charges" value={formData.weaving_charges} />
             </Box>
-            <DataGrid columns={weftCols} data={formData.wefts} showFooter={true} print={true}/>
+            <DataGrid columns={weftCols} data={formData.wefts || []} showFooter={true} print={true}/>
           </Box>
         </Grid>
       </Grid>
