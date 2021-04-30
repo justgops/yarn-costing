@@ -1,4 +1,4 @@
-import { Box, Button, Card, CardContent, CardHeader, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, IconButton, makeStyles, OutlinedInput, Paper, Slide, Typography } from '@material-ui/core';
+import { Box, Button, Card, CardContent, CardHeader, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, IconButton, makeStyles, OutlinedInput, Paper, Slide, Typography, useTheme } from '@material-ui/core';
 import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { connect } from 'react-redux';
 import DataGrid from '../components/DataGrid';
@@ -159,10 +159,10 @@ const rateReducer = (state)=>{
   state.profit_local_per = parse((parse(state.dem_rate_local_rs) - state.actual_cost)/state.actual_cost*100);
 
   state.job_rate_out = parse((
-    (parse(state.dem_rate_out_rs)*100/(1+parse(state.rate_out_per)))-state.actual_cost+state.weaving_charges
+    (parse(state.dem_rate_out_rs)*100/(100+parse(state.rate_out_per)))-state.actual_cost+state.weaving_charges
   )/parse(state.weft_pick)*100);
   state.job_rate_local = parse((
-    (parse(state.dem_rate_local_rs)*100/(1+parse(state.rate_local_per)))-state.actual_cost+state.weaving_charges
+    (parse(state.dem_rate_local_rs)*100/(100+parse(state.rate_local_per)))-state.actual_cost+state.weaving_charges
   )/parse(state.weft_pick)*100);
 
   return state;
@@ -378,6 +378,21 @@ function Calculator({open, onClose, onSave, data}) {
     return row;
   }
 
+  const theme = useTheme();
+  const getSignalStyles = (num1, num2)=>{
+    let styles = {}
+    if(num1 > num2) {
+      styles.backgroundColor = theme.palette.error.main;
+      styles.color = theme.palette.error.contrastText;
+      styles.opacity = 1;
+    } else if(num1 < num2) {
+      styles.backgroundColor = theme.palette.success.main;
+      styles.color = theme.palette.success.contrastText;
+      styles.opacity = 1;
+    }
+    return styles;
+  }
+
   return (
     <Dialog onClose={onClose} disableEscapeKeyDown open={open} fullScreen scroll='paper' TransitionProps={{
       enter: false,
@@ -462,7 +477,7 @@ function Calculator({open, onClose, onSave, data}) {
                        errorMsg={formDataErr.weft_pick} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
-                    <FormInputText type="number" label="Job rate" name='weft_job_rate' value={formData.weft_job_rate}
+                    <FormInputText type="number" label="Job rate (paise)" name='weft_job_rate' value={formData.weft_job_rate}
                        errorMsg={formDataErr.weft_job_rate} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
@@ -499,10 +514,11 @@ function Calculator({open, onClose, onSave, data}) {
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Profit(out) %" name='profit_out_per' value={formData.profit_out_per}
-                       errorMsg={formDataErr.profit_out_per} onChange={onRateChange} readOnly/>
+                       errorMsg={formDataErr.profit_out_per} onChange={onRateChange} readOnly
+                       inputProps={{style: getSignalStyles(formData.rate_out_per, formData.profit_out_per)}} />
                   </FormRowItem>
                   <FormRowItem>
-                    <FormInputText type="number" label="Job rate(out)" name='job_rate_out' value={formData.job_rate_out}
+                    <FormInputText type="number" label="Job rate(out) paise" name='job_rate_out' value={formData.job_rate_out}
                        errorMsg={formDataErr.job_rate_out} onChange={onRateChange} readOnly/>
                   </FormRowItem>
                 </FormRow>
@@ -520,11 +536,12 @@ function Calculator({open, onClose, onSave, data}) {
                        errorMsg={formDataErr.dem_rate_local_rs} onChange={onRateChange} />
                   </FormRowItem>
                   <FormRowItem>
-                    <FormInputText type="number" label="Profit(local)" name='profit_local_per' value={formData.profit_local_per}
-                       errorMsg={formDataErr.profit_local_per} onChange={onRateChange} readOnly/>
+                    <FormInputText type="number" label="Profit(local) %" name='profit_local_per' value={formData.profit_local_per}
+                       errorMsg={formDataErr.profit_local_per} onChange={onRateChange} readOnly
+                       inputProps={{style: getSignalStyles(formData.rate_local_per, formData.profit_local_per)}} />
                   </FormRowItem>
                   <FormRowItem>
-                    <FormInputText type="number" label="Job rate(local)" name='job_rate_local' value={formData.job_rate_local}
+                    <FormInputText type="number" label="Job rate(local) paise" name='job_rate_local' value={formData.job_rate_local}
                        errorMsg={formDataErr.job_rate_local} onChange={onRateChange} readOnly/>
                   </FormRowItem>
                 </FormRow>
@@ -573,6 +590,7 @@ function Calculator({open, onClose, onSave, data}) {
         <Button variant="contained" onClick={()=>{
           onSave(true, formData);
         }} color="primary" disabled={!Boolean(formData.name)}>Copy and Save</Button>
+        <Button variant="outlined" color="primary" style={{marginLeft: '0.5rem'}} disabled>Print(Coming soon)</Button>
         <Button variant="outlined" color="primary" onClick={onClose} style={{marginLeft: '0.5rem'}}>Cancel</Button>
       </DialogActions>
     </Dialog>

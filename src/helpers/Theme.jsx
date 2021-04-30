@@ -98,7 +98,8 @@ export const theme = createMuiTheme({
                 '&[readonly]':{
                     backgroundColor: defaultTheme.palette.grey[200],
                     opacity: 0.75
-                }
+                },
+                borderRadius: 'inherit',
             },
             inputMarginDense: {
                 padding: defaultTheme.spacing(1, 1.5),

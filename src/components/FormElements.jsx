@@ -192,7 +192,7 @@ export class FormFieldValidator {
   }
 }
 
-export function FormInputText({InputIcon, errorMsg, required, onChange, label, readOnly, info, hasCopy, ...props}) {
+export function FormInputText({InputIcon, errorMsg, required, onChange, label, readOnly, info, hasCopy, inputProps, ...props}) {
   const classes = useStyles();
 
   return (
@@ -214,7 +214,8 @@ export function FormInputText({InputIcon, errorMsg, required, onChange, label, r
           inputProps={{
             'data-label': label,
             'data-required': required,
-            readOnly: Boolean(readOnly)
+            readOnly: Boolean(readOnly),
+            ...inputProps,
           }}
           onChange={onChange}
           onBlur={onChange}
