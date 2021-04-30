@@ -1,10 +1,10 @@
 import { Box, Button, Card, CardContent, CardHeader, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, IconButton, makeStyles, OutlinedInput, Paper, Slide, Typography } from '@material-ui/core';
 import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { connect } from 'react-redux';
-import DataGrid from './DataGrid';
-import { setNotification } from './store/reducers/notification';
+import DataGrid from '../components/DataGrid';
+import { setNotification } from '../store/reducers/notification';
 import _ from 'lodash';
-import { FormRowItem, FormInputText, FormRow } from './components/FormElements';
+import { FormRowItem, FormInputText, FormRow } from '../components/FormElements';
 import DeleteForeverRoundedIcon from '@material-ui/icons/DeleteForeverRounded';
 import CloseOutlinedIcon from '@material-ui/icons/CloseOutlined';
 
@@ -106,12 +106,12 @@ const warpGridReducer = (state, rowsChange=false)=>{
       parse((state.warp_total_ends * parse(state.warp_lassa_yards)/(1852)/parse(row.count)/parse(state.warp_metre))
         * parse(row.perct)/100);
 
-    row.weight = parse(weight + (parse(row.wastage) * weight)/100);
+    row.weight_wastage = parse(weight + (parse(row.wastage) * weight)/100);
     state.warp_weight += weight;
-    state.warp_weight_wastage += row.weight;
+    state.warp_weight_wastage += row.weight_wastage;
 
-    row.cost = parse(row.weight * parse(row.rate));
-    row.sizing_cost = parse(row.weight * parse(row.sizing_rate));
+    row.cost = parse(row.weight_wastage * parse(row.rate));
+    row.sizing_cost = parse(row.weight_wastage * parse(row.sizing_rate));
   }
 
   state.warp_weight = parse(state.warp_weight);
@@ -135,11 +135,11 @@ const weftGridReducer = (state, rowsChange)=>{
       parse((parse(state.weft_metre) * (parse(state.weft_panna) + parse(state.weft_reed_space)) * parse(state.weft_pick)/(1693.33*row.count))
         *parse(row.perct)/100);
 
-    row.weight = parse(weight + (parse(row.wastage) * weight)/100);
+    row.weight_wastage = parse(weight + (parse(row.wastage) * weight)/100);
     state.weft_weight += weight;
-    state.weft_weight_wastage += row.weight;
+    state.weft_weight_wastage += row.weight_wastage;
 
-    row.cost = parse(row.weight * parse(row.rate));
+    row.cost = parse(row.weight_wastage * parse(row.rate));
   }
 
   return state;
@@ -278,7 +278,7 @@ function Calculator({open, onClose, onSave, data}) {
     },
     {
       Header: 'Weight(w/wastage)',
-      accessor: 'weight',
+      accessor: 'weight_wastage',
       readOnly: true,
       showTotal: true,
     },
@@ -315,7 +315,7 @@ function Calculator({open, onClose, onSave, data}) {
     },
     {
       Header: 'Weight(w/wastage)',
-      accessor: 'weight',
+      accessor: 'weight_wastage',
       readOnly: true,
       showTotal: true,
     },

@@ -17,6 +17,7 @@ const useStyles = makeStyles((theme)=>({
     padding: theme.spacing(1),
     borderRight: theme.mixins.border,
     borderBottom: theme.mixins.border,
+    width: '50%',
   },
 }));
 

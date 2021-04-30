@@ -1,10 +1,10 @@
 import { Box, Button, IconButton, Link, makeStyles, Modal, OutlinedInput, useTheme } from '@material-ui/core';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { connect } from 'react-redux';
-import DataGrid from './DataGrid';
-import { NOTIFICATION_TYPE, setNotification } from './store/reducers/notification';
+import DataGrid from '../components/DataGrid';
+import { NOTIFICATION_TYPE, setNotification } from '../store/reducers/notification';
 import Calculator from './Calculator';
-import { BASE_URL, getApi } from './api';
+import { BASE_URL, getApi } from '../api';
 import _ from 'lodash';
 
 const useStyles = makeStyles((theme)=>({
@@ -64,7 +64,9 @@ function FabricCosting(props) {
     {
       Header: 'Name',
       id: 'name',
+      accessor: (originalRow)=>originalRow.data.name,
       Cell: ({value, row})=>{
+        console.log(value);
         return <Link onClick={()=>{
           if(licExpired) return;
           setSelId({
@@ -72,13 +74,14 @@ function FabricCosting(props) {
             ...row.original.data
           });
           setOpenCalc(true);
-        }} href="#">{row.original.data.name}</Link>
+        }} href="#">{value}</Link>
       }
     },
     {
       Header: 'Notes',
       id: 'notes',
-      Cell: ({row})=><span>{row.original.data.notes}</span>,
+      accessor: (originalRow)=>originalRow.data.notes,
+      Cell: ({value})=><span>{value}</span>,
     },
   ], [licExpired]);
 
@@ -109,7 +112,7 @@ function FabricCosting(props) {
       props.setNotification(NOTIFICATION_TYPE.SUCCESS, 'Quality saved successfully');
     }).catch((err)=>{
       props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(err));
-    })
+    });
   }
 
   return (
