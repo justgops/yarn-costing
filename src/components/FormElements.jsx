@@ -43,7 +43,7 @@ export function Form({children}) {
   );
 }
 
-export function FormRow({children}) {
+export function FormRow({print, children}) {
   const classes = useStyles();
   let sizingProps = {xs: 12};
   let items = React.Children.count(children);
@@ -56,6 +56,10 @@ export function FormRow({children}) {
     6: 2,
   }
   sizingProps['md'] = sizingProps['sm'] = sizingProps['lg'] = factor[items] || 12;
+
+  if(print) {
+    sizingProps['xs'] = factor;
+  }
 
   return(
     <Grid container spacing={1} className={classes.formRow}>

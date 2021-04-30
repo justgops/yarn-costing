@@ -1,5 +1,5 @@
 import { Box, Button, Card, CardContent, CardHeader, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, IconButton, makeStyles, OutlinedInput, Paper, Slide, Typography, useTheme } from '@material-ui/core';
-import React, { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { connect } from 'react-redux';
 import DataGrid from '../components/DataGrid';
 import { setNotification } from '../store/reducers/notification';
@@ -7,6 +7,7 @@ import _ from 'lodash';
 import { FormRowItem, FormInputText, FormRow } from '../components/FormElements';
 import DeleteForeverRoundedIcon from '@material-ui/icons/DeleteForeverRounded';
 import CloseOutlinedIcon from '@material-ui/icons/CloseOutlined';
+import ReactToPrint from 'react-to-print';
 
 const ROUND_DECIMAL = 3;
 
@@ -41,7 +42,14 @@ const useStyles = makeStyles((theme)=>({
         border: 0,
       }
     }
-  }
+  },
+  page: {
+    width: '297mm',
+    backgroundColor: '#fff',
+    padding: '5mm',
+    color: '#000',
+    fontSize: '16px',
+  },
 }));
 
 const formReducer = (state, action)=>{
@@ -173,6 +181,8 @@ function getGridCols(basePath, formDispatch, postReducer, otherCols, cellClassNa
   let baseCols = [{
     Header: '',
     id: 'id',
+    Print: ({row})=>row.index+1,
+    PrintFooter: '',
     Cell: ({row})=>{
       return <span style={{paddingLeft: '0.25rem', paddingRight: '0.25rem', fontWeight: 'bold'}}>{row.index+1}</span>;
     }
@@ -197,6 +207,15 @@ function getGridCols(basePath, formDispatch, postReducer, otherCols, cellClassNa
     baseCols.push({
       Header: col.Header,
       accessor: col.accessor,
+      Print: ({value, row})=>value,
+      PrintFooter: col.showTotal ? (info)=>{
+        let total = info.rows.reduce((sum, row) => {
+            return (row.values[col.accessor] || 0) + sum
+          }, 0
+        );
+        total = parse(total);
+        return total;
+      } : '',
       Footer: col.showTotal ? (info)=>{
         let total = info.rows.reduce((sum, row) => {
             return (row.values[col.accessor] || 0) + sum
@@ -378,6 +397,7 @@ function Calculator({open, onClose, onSave, data}) {
     return row;
   }
 
+  const reportRef = useRef()
   const theme = useTheme();
   const getSignalStyles = (num1, num2)=>{
     let styles = {}
@@ -406,7 +426,7 @@ function Calculator({open, onClose, onSave, data}) {
         <FormRow>
           <FormRowItem>
             <FormInputText autoFocus label="Name" name='name' value={formData.name}
-               errorMsg={formDataErr.name} onChange={onTextChange} />
+              errorMsg={formDataErr.name} onChange={onTextChange} />
           </FormRowItem>
           <FormRowItem>
             <FormInputText label="Notes" name='notes' value={formData.notes}
@@ -422,23 +442,23 @@ function Calculator({open, onClose, onSave, data}) {
                 <FormRow>
                   <FormRowItem>
                     <FormInputText type="number" type="number" label="Reed" name='warp_reed' value={formData.warp_reed}
-                       errorMsg={formDataErr.warp_reed} onChange={onWarpTextChange} />
+                      errorMsg={formDataErr.warp_reed} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Panna" name='warp_panna' value={formData.warp_panna}
-                       errorMsg={formDataErr.warp_panna} onChange={onWarpTextChange} />
+                      errorMsg={formDataErr.warp_panna} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Reed space" name='warp_reed_space' value={formData.warp_reed_space}
-                       errorMsg={formDataErr.warp_reed_space} onChange={onWarpTextChange} />
+                      errorMsg={formDataErr.warp_reed_space} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Lassa(Meters)" name='warp_meter' value={formData.warp_meter}
-                       errorMsg={formDataErr.warp_meter} onChange={onWarpTextChange} />
+                      errorMsg={formDataErr.warp_meter} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="L to L" name='warp_ltol' value={formData.warp_ltol}
-                       errorMsg={formDataErr.warp_ltol} onChange={onWarpTextChange} />
+                      errorMsg={formDataErr.warp_ltol} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Total ends" name='warp_total_ends' value={formData.warp_total_ends}
@@ -461,24 +481,24 @@ function Calculator({open, onClose, onSave, data}) {
               <Box style={{padding: '0.5rem'}}>
                 <FormRow>
                   <FormRowItem>
-                    <FormInputText type="number" label="Metre" name='weft_metre' value={formData.weft_metre}
-                       errorMsg={formDataErr.weft_metre} onChange={onWeftTextChange} />
+                    <FormInputText type="number" label="Meter" name='weft_metre' value={formData.weft_metre}
+                      errorMsg={formDataErr.weft_metre} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Panna" name='weft_panna' value={formData.weft_panna}
-                       errorMsg={formDataErr.panna} onChange={onWeftTextChange} />
+                      errorMsg={formDataErr.panna} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Reed space" name='weft_reed_space' value={formData.weft_reed_space}
-                       errorMsg={formDataErr.reed_space} onChange={onWeftTextChange} />
+                      errorMsg={formDataErr.reed_space} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Pick" name='weft_pick' value={formData.weft_pick}
-                       errorMsg={formDataErr.weft_pick} onChange={onWeftTextChange} />
+                      errorMsg={formDataErr.weft_pick} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Job rate (paise)" name='weft_job_rate' value={formData.weft_job_rate}
-                       errorMsg={formDataErr.weft_job_rate} onChange={onWeftTextChange} />
+                      errorMsg={formDataErr.weft_job_rate} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Weaving charges" name='weaving_charges' value={formData.weaving_charges}
@@ -502,47 +522,47 @@ function Calculator({open, onClose, onSave, data}) {
                 <FormRow>
                   <FormRowItem>
                     <FormInputText type="number" label="Rate(out) %" name='rate_out_per' value={formData.rate_out_per}
-                       errorMsg={formDataErr.rate_out_per} onChange={onRateChange} />
+                      errorMsg={formDataErr.rate_out_per} onChange={onRateChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Rs" name='rate_out_rs' value={formData.rate_out_rs}
-                       errorMsg={formDataErr.rate_out_rs} onChange={onRateChange} readOnly/>
+                      errorMsg={formDataErr.rate_out_rs} onChange={onRateChange} readOnly/>
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Demanded rate(out)" name='dem_rate_out_rs' value={formData.dem_rate_out_rs}
-                       errorMsg={formDataErr.dem_rate_out_rs} onChange={onRateChange} />
+                      errorMsg={formDataErr.dem_rate_out_rs} onChange={onRateChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Profit(out) %" name='profit_out_per' value={formData.profit_out_per}
-                       errorMsg={formDataErr.profit_out_per} onChange={onRateChange} readOnly
-                       inputProps={{style: getSignalStyles(formData.rate_out_per, formData.profit_out_per)}} />
+                      errorMsg={formDataErr.profit_out_per} onChange={onRateChange} readOnly
+                      inputProps={{style: getSignalStyles(formData.rate_out_per, formData.profit_out_per)}} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Job rate(out) paise" name='job_rate_out' value={formData.job_rate_out}
-                       errorMsg={formDataErr.job_rate_out} onChange={onRateChange} readOnly/>
+                      errorMsg={formDataErr.job_rate_out} onChange={onRateChange} readOnly/>
                   </FormRowItem>
                 </FormRow>
                 <FormRow>
                   <FormRowItem>
                     <FormInputText type="number" label="Rate(local) %" name='rate_local_per' value={formData.rate_local_per}
-                       errorMsg={formDataErr.rate_local_per} onChange={onRateChange} />
+                      errorMsg={formDataErr.rate_local_per} onChange={onRateChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Rs" name='rate_local_rs' value={formData.rate_local_rs}
-                       errorMsg={formDataErr.rate_local_rs} onChange={onRateChange} readOnly/>
+                      errorMsg={formDataErr.rate_local_rs} onChange={onRateChange} readOnly/>
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Demanded rate(local)" name='dem_rate_local_rs' value={formData.dem_rate_local_rs}
-                       errorMsg={formDataErr.dem_rate_local_rs} onChange={onRateChange} />
+                      errorMsg={formDataErr.dem_rate_local_rs} onChange={onRateChange} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Profit(local) %" name='profit_local_per' value={formData.profit_local_per}
-                       errorMsg={formDataErr.profit_local_per} onChange={onRateChange} readOnly
-                       inputProps={{style: getSignalStyles(formData.rate_local_per, formData.profit_local_per)}} />
+                      errorMsg={formDataErr.profit_local_per} onChange={onRateChange} readOnly
+                      inputProps={{style: getSignalStyles(formData.rate_local_per, formData.profit_local_per)}} />
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Job rate(local) paise" name='job_rate_local' value={formData.job_rate_local}
-                       errorMsg={formDataErr.job_rate_local} onChange={onRateChange} readOnly/>
+                      errorMsg={formDataErr.job_rate_local} onChange={onRateChange} readOnly/>
                   </FormRowItem>
                 </FormRow>
               </Box>
@@ -582,6 +602,9 @@ function Calculator({open, onClose, onSave, data}) {
             </Paper>
           </Grid>
         </Grid>
+        <Box display="none">
+          <PrintPage formData={formData} printRef={reportRef} warpCols={warpCols} weftCols={weftCols}/>
+        </Box>
       </DialogContent>
       <DialogActions style={{justifyContent: 'flex-start'}}>
         <Button variant="contained" onClick={()=>{
@@ -590,10 +613,94 @@ function Calculator({open, onClose, onSave, data}) {
         <Button variant="contained" onClick={()=>{
           onSave(true, formData);
         }} color="primary" disabled={!Boolean(formData.name)}>Copy and Save</Button>
-        <Button variant="outlined" color="primary" style={{marginLeft: '0.5rem'}} disabled>Print(Coming soon)</Button>
+        <ReactToPrint
+          trigger={()=><Button color="primary" variant="outlined" style={{marginLeft: '0.5rem'}}>Print</Button>}
+          content={()=>reportRef.current}
+          pageStyle={pageStyle}
+          documentTitle={'Costing-'+formData.name}
+        />
+        {/* <Button variant="outlined" color="primary" style={{marginLeft: '0.5rem'}} disabled>Print(Coming soon)</Button> */}
         <Button variant="outlined" color="primary" onClick={onClose} style={{marginLeft: '0.5rem'}}>Cancel</Button>
       </DialogActions>
     </Dialog>
+  )
+}
+
+const pageStyle = `
+  @page {
+    size: A4 landscape;
+    margin: 0mm;
+  }
+`;
+
+const useReportStyles = makeStyles((theme)=>({
+  page: {
+    width: '297mm',
+    backgroundColor: '#fff',
+    padding: '5mm',
+    color: '#000',
+    fontSize: '16px',
+  },
+}));
+
+function PrintPage({printRef, formData, warpCols, weftCols}) {
+  const classes = useReportStyles();
+  return (
+    <Box ref={printRef} className={classes.page}>
+      <Box textAlign="center">
+        <h3>Fabric Costing</h3>
+      </Box>
+      {/* <Divider /> */}
+      <Box borderTop={1}/>
+      <Box p={1}>
+        <PrintField label="Quality Name" value={formData.name} />
+      </Box>
+      <Box borderTop={1}/>
+      <Grid container>
+        <Grid item xs={12}>
+          <Box>
+            <Box textAlign="center">
+              <h3>Warp</h3>
+            </Box>
+            <Box display="flex" flexWrap="wrap">
+              <PrintField label="Reed Name" value={formData.warp_reed} />
+              <PrintField margin label="Panna" value={formData.warp_panna} />
+              <PrintField margin label="Reed space" value={formData.warp_reed_space} />
+              <PrintField margin label="Lassa(Meters)" value={formData.warp_meter} />
+              <PrintField margin label="Total ends" value={formData.warp_total_ends} />
+            </Box>
+            <DataGrid columns={warpCols} data={formData.warps} showFooter={true} print={true}/>
+          </Box>
+          <Box>
+            <Box textAlign="center">
+              <h3>Weft</h3>
+            </Box>
+            <Box display="flex" flexWrap="wrap">
+              <PrintField label="Meter" value={formData.weft_metre} />
+              <PrintField margin label="Panna" value={formData.weft_panna} />
+              <PrintField margin label="Reed space" value={formData.weft_reed_space} />
+              <PrintField margin label="Pick" value={formData.weft_pick} />
+              <PrintField margin label="Job rate (paise)" value={formData.weft_job_rate} />
+              <PrintField margin label="Weaving charges" value={formData.weaving_charges} />
+            </Box>
+            <DataGrid columns={weftCols} data={formData.wefts} showFooter={true} print={true}/>
+          </Box>
+        </Grid>
+      </Grid>
+      <Divider />
+      <PrintField label="Gross rate" rs={true} value={formData.actual_cost} />
+      <PrintField label="Rate local" rs={true} value={formData.rate_local_rs} />
+      <PrintField label="Rate out" rs={true} value={formData.rate_out_rs} />
+      <Box position="fixed" bottom="0" left="0" right="0" textAlign="center" fontSize="0.6em">Generated by Costing software by team Yantra - yantra.contact@gmail.com</Box>
+    </Box>
+  )
+}
+
+function PrintField({label, value, rs, margin, ...props}) {
+  return (
+    <Box {...props} marginLeft={margin ? '1rem' : 0}>
+      <span style={{fontWeight: 'bold'}}>{label}</span>: {rs && 'Rs. '}<span>{value}</span>
+    </Box>
   )
 }
 

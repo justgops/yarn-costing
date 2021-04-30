@@ -17,13 +17,13 @@ const useStyles = makeStyles((theme)=>({
     margin: 0,
     textAlign: 'left',
     fontWeight: 'initial',
-    padding: theme.spacing(1),
+    padding: theme.spacing(0.5),
     borderRight: theme.mixins.border,
     borderBottom: theme.mixins.border,
   },
 }));
 
-export default function DataGrid({ columns, data, filterText, showFooter=false, tdClassName, fixedLayout=false }) {
+export default function DataGrid({ columns, data, filterText, showFooter=false, tdClassName, fixedLayout=false, print=false }) {
   const classes = useStyles();
   // Use the state and functions returned from useTable to build your UI
   const {
@@ -49,7 +49,7 @@ export default function DataGrid({ columns, data, filterText, showFooter=false, 
       <thead>
         {headerGroups.map(headerGroup => (
           <tr {...headerGroup.getHeaderGroupProps()}>
-            {headerGroup.headers.map(column => (
+            {headerGroup.headers.filter((column)=>print ? Boolean(column.Print) : true).map(column => (
               <th {...column.getHeaderProps()} className={classes.tableCell}>{column.render('Header')}</th>
             ))}
           </tr>
@@ -60,8 +60,8 @@ export default function DataGrid({ columns, data, filterText, showFooter=false, 
           prepareRow(row)
           return (
             <tr {...row.getRowProps()}>
-              {row.cells.map(cell => {
-                return <td {...cell.getCellProps()} className={clsx(classes.tableCell, tdClassName)}>{cell.render('Cell')}</td>
+              {row.cells.filter((cell)=>print ? Boolean(cell.column.Print) : true).map(cell => {
+                return <td {...cell.getCellProps()} className={clsx(classes.tableCell, tdClassName)}>{cell.render(print ? 'Print' : 'Cell')}</td>
               })}
             </tr>
           )
@@ -71,8 +71,8 @@ export default function DataGrid({ columns, data, filterText, showFooter=false, 
       <tfoot>
         {footerGroups.map(group => (
           <tr {...group.getFooterGroupProps()}>
-            {group.headers.map(column => (
-              <td {...column.getFooterProps()} className={clsx(classes.tableCell, tdClassName)}>{column.render('Footer')}</td>
+            {group.headers.filter((column)=>print ? Boolean(column.Print) : true).map(column => (
+              <td {...column.getFooterProps()} className={clsx(classes.tableCell, tdClassName)}>{column.render(print ? 'PrintFooter' : 'Footer')}</td>
             ))}
           </tr>
         ))}

@@ -53,6 +53,7 @@
     "react-router-dom": "^5.2.0",
     "react-scripts": "4.0.3",
     "react-table": "^7.6.3",
+    "react-to-print": "^2.12.4",
     "redux": "^4.0.5",
     "sequelize": "^6.6.2",
     "sqlite3": "^5.0.2",
