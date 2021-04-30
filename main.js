@@ -13,8 +13,10 @@ function createWindow () {
       nodeIntegration: false,
       webSecurity: false,
     },
-    backgroundColor: '#fff'
+    backgroundColor: '#fff',
+    show: false
   });
+  mainWin.maximize();
 
   var template = [
     {
@@ -36,6 +38,7 @@ function createWindow () {
     mainWin.setMenu(null);
   }
   mainWin.loadFile(path.resolve(__dirname,'loading.html'));
+  mainWin.show();
 
   globalShortcut.register('CommandOrControl+R', function() {
 		mainWin.reload()
