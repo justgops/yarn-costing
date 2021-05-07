@@ -11,6 +11,8 @@ import { BASE_URL, getApi } from './api';
 import FabricCosting from './FabricCosting';
 import IconButton from '@material-ui/core/IconButton';
 import CloseIcon from '@material-ui/icons/Close';
+import Settings from './Settings';
+import { setSettings } from './store/reducers/settings';
 
 const useStyles = makeStyles((theme)=>({
   dashboardRoot: {
@@ -36,6 +38,7 @@ const useStyles = makeStyles((theme)=>({
 
 const navItems = [
   {label: 'Fabric costing', path: '/fabriccosting', component: FabricCosting},
+  {label: 'Settings', path: '/settings', component: Settings},
   {label: 'License', path: '/license', component: License},
 ];
 
@@ -96,24 +99,34 @@ function Dashboard({location, ...props}) {
   }
 
   useEffect(()=>{
+    api.get(BASE_URL.SETTINGS)
+      .then((res)=>{
+        let data = res.data;
+        props.setSettings(JSON.parse(data));
+      })
+      .catch((err)=>{
+        console.log(getAxiosErr(err));
+      });
+
     api.post(BASE_URL.MISC + '/init')
-        .then((res)=>{
-            let data = res.data;
-            console.log(data);
-            setActivation((prev)=>{
-              let usage_days_left = (TRIAL_DAYS - epochDiffDays(getEpoch(), data.install_date));
-              usage_days_left = usage_days_left < 0 ? 0 : usage_days_left;
-              return {
-                ...prev,
-                system_id: data.system_id,
-                is_trial: !Boolean(data.activation_date),
-                usage_days_left: usage_days_left,
-              }
-            });
-        })
-        .catch((err)=>{
-            console.log(getAxiosErr(err));
-        });
+      .then((res)=>{
+          let data = res.data;
+          console.log(data);
+          setActivation((prev)=>{
+            let usage_days_left = (TRIAL_DAYS - epochDiffDays(getEpoch(), data.install_date));
+            usage_days_left = usage_days_left < 0 ? 0 : usage_days_left;
+            return {
+              ...prev,
+              system_id: data.system_id,
+              is_trial: !Boolean(data.activation_date),
+              usage_days_left: usage_days_left,
+            }
+          });
+      })
+      .catch((err)=>{
+          console.log(getAxiosErr(err));
+      });
+
   }, []);
 
 
@@ -170,4 +183,5 @@ function Dashboard({location, ...props}) {
 export default connect((state)=>({notify: state.notify}), (dispatch)=>({
   setNotification: (...args)=>{dispatch(setNotification.apply(this, args))},
   clearNotification: ()=>{dispatch(setNotification(null, null))},
+  setSettings: (payload)=>{dispatch(setSettings(payload))},
 }))(Dashboard);

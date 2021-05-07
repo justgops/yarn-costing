@@ -2,6 +2,7 @@ import { makeStyles } from '@material-ui/core'
 import React, { useEffect } from 'react'
 import { useFlexLayout, useGlobalFilter, useTable } from 'react-table';
 import clsx from 'clsx';
+import { Children } from 'react';
 
 const useStyles = makeStyles((theme)=>({
   grid: {
@@ -10,6 +11,7 @@ const useStyles = makeStyles((theme)=>({
     overflow: 'auto',
     border: theme.mixins.border,
   },
+
   fixedLayout: {
     tableLayout: 'fixed',
   },
@@ -21,6 +23,16 @@ const useStyles = makeStyles((theme)=>({
     borderRight: theme.mixins.border,
     borderBottom: theme.mixins.border,
   },
+  noPadding: {
+    padding: '0px',
+  },
+  noBorder: {
+    border: 0,
+  },
+  noCellBorder: {
+    borderRight: 0,
+    borderBottom: 0,
+  }
 }));
 
 export default function DataGrid({ columns, data, filterText, showFooter=false, tdClassName, fixedLayout=false, print=false }) {
@@ -78,5 +90,29 @@ export default function DataGrid({ columns, data, filterText, showFooter=false, 
         ))}
       </tfoot>}
     </table>
+  )
+}
+
+export function TableLayout({children, className, fixedLayout}) {
+  const classes = useStyles();
+  return (
+    <table className={clsx(classes.grid, classes.noBorder, fixedLayout ? classes.fixedLayout : null, className)}>
+      <tbody>
+        {children}
+      </tbody>
+    </table>
+  )
+}
+
+export function TableLayoutRow({children}) {
+  return (
+    <tr>{children}</tr>
+  );
+}
+
+export function TableLayoutCell({children, className}) {
+  const classes = useStyles();
+  return (
+    <td className={clsx(classes.tableCell, classes.noCellBorder, className)}>{children}</td>
   )
 }

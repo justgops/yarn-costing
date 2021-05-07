@@ -53,6 +53,9 @@ export const theme = createMuiTheme({
         MuiIconButton: {
             size: 'small',
             disableTouchRipple: true,
+        },
+        MuiPaper: {
+            variant: "outlined"
         }
     },
     overrides: {

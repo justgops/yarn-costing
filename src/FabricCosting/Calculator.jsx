@@ -1,15 +1,18 @@
-import { Box, Button, Card, CardContent, CardHeader, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, IconButton, makeStyles, OutlinedInput, Paper, Slide, Typography, useTheme } from '@material-ui/core';
+import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Card, CardContent, CardHeader, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, IconButton, makeStyles, OutlinedInput, Paper, Slide, Typography, useTheme } from '@material-ui/core';
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { connect } from 'react-redux';
-import DataGrid from '../components/DataGrid';
+import DataGrid, { TableLayout, TableLayoutCell, TableLayoutRow } from '../components/DataGrid';
 import { setNotification } from '../store/reducers/notification';
 import _ from 'lodash';
 import { FormRowItem, FormInputText, FormRow } from '../components/FormElements';
 import DeleteForeverRoundedIcon from '@material-ui/icons/DeleteForeverRounded';
 import CloseOutlinedIcon from '@material-ui/icons/CloseOutlined';
 import ReactToPrint from 'react-to-print';
+import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
+import SettingsOutlinedIcon from '@material-ui/icons/SettingsOutlined';
+import { getSettings } from '../store/reducers/settings';
 
-const ROUND_DECIMAL = 3;
+const ROUND_DECIMAL = 5;
 
 function parse(num) {
   if(!isNaN(num)) {
@@ -50,131 +53,145 @@ const useStyles = makeStyles((theme)=>({
     color: '#000',
     fontSize: '16px',
   },
+  borderBottom: {
+    borderBottom: '1px solid '+theme.palette.grey[500],
+  },
+  borderTop: {
+    borderTop: '1px solid '+theme.palette.grey[500],
+  }
 }));
 
-const formReducer = (state, action)=>{
+const getFormReducer = (settings)=>(state, action)=>{
+  const globalReducer = (state)=>{
+    state.actual_cost = 0;
+    state.total_weight = parse(state.warp_weight + state.weft_weight);
+    state.total_weight_wastage = parse(state.warp_weight_wastage + state.weft_weight_wastage);
+
+    for(let row of state['warps'] || []) {
+      state.actual_cost  += row.cost + row.sizing_cost;
+    }
+    for(let row of state['wefts'] || []) {
+      state.actual_cost  += row.cost;
+    }
+    state.actual_cost += state.weaving_charges;
+    state.actual_cost = parse(state.actual_cost);
+    return state;
+  }
+
+  const warpPostReducer = (state, rowsChange=false)=>{
+    state.warp_total_ends =  parse(state.warp_reed) * (parse(state.warp_panna) + parse(state.warp_reed_space));
+    state.warp_weight = 0.0;
+    state.warp_weight_wastage = 0.0;
+
+    let gridValue = state['warps'];
+    if(!gridValue) return state;
+
+    let perct = (100/gridValue.length);
+
+    for(let row of gridValue) {
+      row.perct = rowsChange ? perct : row.perct;
+      let weight =
+        parse((state.warp_total_ends * parse(state.warp_meter)/parse(settings.length_per_count)/parse(row.count)/parse(state.warp_ltol))
+          * parse(row.perct)/100);
+
+      row.weight_wastage = parse(weight + (parse(row.wastage) * weight)/100);
+      state.warp_weight += weight;
+      state.warp_weight_wastage += row.weight_wastage;
+
+      row.cost = parse(row.weight_wastage * parse(row.rate));
+      row.sizing_cost = parse(row.weight_wastage * parse(row.sizing_rate));
+    }
+
+    state.warp_weight = parse(state.warp_weight);
+    state.warp_weight_wastage = parse(state.warp_weight_wastage);
+
+    return state;
+  }
+
+  const weftPostReducer = (state, rowsChange)=>{
+    state.weaving_charges = parse(state.weft_pick) * parse(state.weft_job_rate)/100;
+    state.weft_weight = 0;
+    state.weft_weight_wastage = 0;
+
+    let gridValue = state['wefts'];
+    if(!gridValue) return state;
+
+    let perct = (100/gridValue.length);
+    for(let row of gridValue) {
+      row.perct = rowsChange ? perct : row.perct;
+      let weight =
+        parse((parse(state.weft_metre) * (parse(state.weft_panna) + parse(state.weft_reed_space)) * parse(state.weft_pick)/(1693.33*row.count))
+          *parse(row.perct)/100);
+
+      row.weight_wastage = parse(weight + (parse(row.wastage) * weight)/100);
+      state.weft_weight += weight;
+      state.weft_weight_wastage += row.weight_wastage;
+
+      row.cost = parse(row.weight_wastage * parse(row.rate));
+    }
+
+    return state;
+  }
+
+  const rateReducer = (state)=>{
+    state.actual_elong_shrink = parse(state.elong_shrink)*state.actual_cost;
+    state.market_elong_shrink = parse(state.elong_shrink)*state.market_cost;
+
+    state.actual_rate_wastage = parse(state.rate_wastage)*3;
+    state.market_rate_wastage = parse(state.rate_wastage)*3;
+
+    state.actual_rate_others = parse(state.rate_others)*4;
+    state.market_rate_others = parse(state.rate_others)*4;
+
+    state.actual_total = parse(state.process_charge) + state.actual_elong_shrink + state.actual_rate_wastage + state.actual_rate_others;
+    state.market_total = parse(state.process_charge) + state.market_elong_shrink + state.market_rate_wastage + state.market_rate_others;
+    return state;
+  }
+
   let newState = _.cloneDeep(state);
   let rows = null;
+
+  const processPostReducer = (postReducer, rowsChange)=>{
+    if(postReducer == 'warp') {
+      newState = warpPostReducer(newState, rowsChange);
+    } else if(postReducer == 'weft') {
+      newState = weftPostReducer(newState, rowsChange);
+    } else if(postReducer == 'all') {
+      newState = weftPostReducer(warpPostReducer(newState, rowsChange), rowsChange);
+    }
+  }
   switch(action.type) {
     case 'init':
       newState = action.value;
+      action.postReducer = 'all';
+      processPostReducer(action.postReducer);
       break;
     case 'set_value':
       _.set(newState, action.path, action.value);
-      if(action.postReducer) {
-        newState = action.postReducer(newState);
-      }
+      processPostReducer(action.postReducer);
       break;
     case 'add_grid_row':
       rows = _.get(newState, action.path, []);
       rows.push(action.value);
       _.set(newState, action.path, rows);
-      if(action.postReducer) {
-        newState = action.postReducer(newState, true);
-      }
+      processPostReducer(action.postReducer, true);
       break;
     case 'remove_grid_row':
       rows = _.get(newState, action.path, []);
       rows.splice(action.value, 1);
       _.set(newState, action.path, rows);
-      if(action.postReducer) {
-        newState = action.postReducer(newState, true);
-      }
+      processPostReducer(action.postReducer, true);
       break;
   }
 
-  newState = globalReducer(newState);
-  newState = rateReducer(newState);
+  if(action.postReducer) {
+    newState = globalReducer(newState);
+    newState = rateReducer(newState);
+  }
   return newState;
 }
 
-const globalReducer = (state)=>{
-  state.actual_cost = 0;
-  state.total_weight = parse(state.warp_weight + state.weft_weight);
-  state.total_weight_wastage = parse(state.warp_weight_wastage + state.weft_weight_wastage);
 
-  for(let row of state['warps'] || []) {
-    state.actual_cost  += row.cost + row.sizing_cost;
-  }
-  for(let row of state['wefts'] || []) {
-    state.actual_cost  += row.cost;
-  }
-  state.actual_cost += state.weaving_charges;
-  state.actual_cost = parse(state.actual_cost);
-  return state;
-}
-
-const warpPostReducer = (state, rowsChange=false)=>{
-  state.warp_total_ends =  parse(state.warp_reed) * (parse(state.warp_panna) + parse(state.warp_reed_space));
-  state.warp_weight = 0.0;
-  state.warp_weight_wastage = 0.0;
-
-  let gridValue = state['warps'];
-  if(!gridValue) return state;
-
-  let perct = (100/gridValue.length);
-
-  for(let row of gridValue) {
-    row.perct = rowsChange ? perct : row.perct;
-    let weight =
-      parse((state.warp_total_ends * parse(state.warp_meter)/1693.33/parse(row.count)/parse(state.warp_ltol))
-        * parse(row.perct)/100);
-
-    row.weight_wastage = parse(weight + (parse(row.wastage) * weight)/100);
-    state.warp_weight += weight;
-    state.warp_weight_wastage += row.weight_wastage;
-
-    row.cost = parse(row.weight_wastage * parse(row.rate));
-    row.sizing_cost = parse(row.weight_wastage * parse(row.sizing_rate));
-  }
-
-  state.warp_weight = parse(state.warp_weight);
-  state.warp_weight_wastage = parse(state.warp_weight_wastage);
-
-  return state;
-}
-
-const weftPostReducer = (state, rowsChange)=>{
-  state.weaving_charges = parse(state.weft_pick) * parse(state.weft_job_rate)/100;
-  state.weft_weight = 0;
-  state.weft_weight_wastage = 0;
-
-  let gridValue = state['wefts'];
-  if(!gridValue) return state;
-
-  let perct = (100/gridValue.length);
-  for(let row of gridValue) {
-    row.perct = rowsChange ? perct : row.perct;
-    let weight =
-      parse((parse(state.weft_metre) * (parse(state.weft_panna) + parse(state.weft_reed_space)) * parse(state.weft_pick)/(1693.33*row.count))
-        *parse(row.perct)/100);
-
-    row.weight_wastage = parse(weight + (parse(row.wastage) * weight)/100);
-    state.weft_weight += weight;
-    state.weft_weight_wastage += row.weight_wastage;
-
-    row.cost = parse(row.weight_wastage * parse(row.rate));
-  }
-
-  return state;
-}
-
-const rateReducer = (state)=>{
-  state.rate_out_rs = parse(state.actual_cost + state.actual_cost * parse(state.rate_out_per)/100);
-  state.rate_local_rs = parse(state.actual_cost + state.actual_cost * parse(state.rate_local_per)/100);
-
-  state.profit_out_per = parse((parse(state.dem_rate_out_rs) - state.actual_cost)/state.actual_cost*100);
-  state.profit_local_per = parse((parse(state.dem_rate_local_rs) - state.actual_cost)/state.actual_cost*100);
-
-  state.job_rate_out = parse((
-    (parse(state.dem_rate_out_rs)*100/(100+parse(state.rate_out_per)))-state.actual_cost+state.weaving_charges
-  )/parse(state.weft_pick)*100);
-  state.job_rate_local = parse((
-    (parse(state.dem_rate_local_rs)*100/(100+parse(state.rate_local_per)))-state.actual_cost+state.weaving_charges
-  )/parse(state.weft_pick)*100);
-
-  return state;
-}
 
 
 function getGridCols(basePath, formDispatch, postReducer, otherCols, cellClassName) {
@@ -241,16 +258,17 @@ function getGridCols(basePath, formDispatch, postReducer, otherCols, cellClassNa
   return baseCols;
 }
 
-function Calculator({open, onClose, onSave, data}) {
+function Calculator({open, onClose, onSave, data, settings}) {
   const classes = useStyles();
   const editMode = !_.isNull(data) && !_.isUndefined(data);
-  const [formData, formDispatch] = useReducer(formReducer, data);
+  const [formData, formDispatch] = useReducer(getFormReducer(settings), data);
   const [formDataErr, setFormDataErr] = useState({});
 
   useEffect(()=>{
     formDispatch({
       type: 'init',
       value: data || {
+        set_length_count: 1693.33,
         weft_metre: 1,
       },
     });
@@ -281,7 +299,7 @@ function Calculator({open, onClose, onSave, data}) {
       type: 'set_value',
       path: name,
       value: value,
-      postReducer: warpPostReducer,
+      postReducer: 'warp',
     });
   });
 
@@ -295,7 +313,7 @@ function Calculator({open, onClose, onSave, data}) {
       type: 'set_value',
       path: name,
       value: value,
-      postReducer: weftPostReducer,
+      postReducer: 'weft',
     });
   });
 
@@ -309,11 +327,10 @@ function Calculator({open, onClose, onSave, data}) {
       type: 'set_value',
       path: name,
       value: value,
-      postReducer: rateReducer,
     });
   });
 
-  const warpCols = useMemo(()=>getGridCols(['warps'], formDispatch, warpPostReducer, [
+  const warpCols = useMemo(()=>getGridCols(['warps'], formDispatch, 'warp', [
     {
       Header: 'Count',
       accessor: 'count',
@@ -355,7 +372,7 @@ function Calculator({open, onClose, onSave, data}) {
     },
   ], classes.gridCell), []);
 
-  const weftCols = useMemo(()=>getGridCols(['wefts'], formDispatch, weftPostReducer, [
+  const weftCols = useMemo(()=>getGridCols(['wefts'], formDispatch, 'weft',[
     {
       Header: 'Count',
       accessor: 'count',
@@ -472,7 +489,7 @@ function Calculator({open, onClose, onSave, data}) {
                   type: 'add_grid_row',
                   path: 'warps',
                   value: getDefaultRow(warpCols),
-                  postReducer: warpPostReducer,
+                  postReducer: 'warp',
                 });
               }}>Add warp</Button>
               <Divider style={{marginTop: '0.5rem'}} />
@@ -512,60 +529,9 @@ function Calculator({open, onClose, onSave, data}) {
                   type: 'add_grid_row',
                   path: 'wefts',
                   value: getDefaultRow(weftCols),
-                  postReducer: weftPostReducer,
+                  postReducer: 'weft',
                 });
               }}>Add weft</Button>
-              <Divider style={{marginTop: '0.5rem'}} />
-              <Typography variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Rates</Typography>
-              <Divider />
-              <Box style={{padding: '0.5rem'}}>
-                <FormRow>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Rate(out) %" name='rate_out_per' value={formData.rate_out_per}
-                      errorMsg={formDataErr.rate_out_per} onChange={onRateChange} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Rs" name='rate_out_rs' value={formData.rate_out_rs}
-                      errorMsg={formDataErr.rate_out_rs} onChange={onRateChange} readOnly/>
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Demanded rate(out)" name='dem_rate_out_rs' value={formData.dem_rate_out_rs}
-                      errorMsg={formDataErr.dem_rate_out_rs} onChange={onRateChange} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Profit(out) %" name='profit_out_per' value={formData.profit_out_per}
-                      errorMsg={formDataErr.profit_out_per} onChange={onRateChange} readOnly
-                      inputProps={{style: getSignalStyles(formData.rate_out_per, formData.profit_out_per)}} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Job rate(out) paise" name='job_rate_out' value={formData.job_rate_out}
-                      errorMsg={formDataErr.job_rate_out} onChange={onRateChange} readOnly/>
-                  </FormRowItem>
-                </FormRow>
-                <FormRow>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Rate(local) %" name='rate_local_per' value={formData.rate_local_per}
-                      errorMsg={formDataErr.rate_local_per} onChange={onRateChange} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Rs" name='rate_local_rs' value={formData.rate_local_rs}
-                      errorMsg={formDataErr.rate_local_rs} onChange={onRateChange} readOnly/>
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Demanded rate(local)" name='dem_rate_local_rs' value={formData.dem_rate_local_rs}
-                      errorMsg={formDataErr.dem_rate_local_rs} onChange={onRateChange} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Profit(local) %" name='profit_local_per' value={formData.profit_local_per}
-                      errorMsg={formDataErr.profit_local_per} onChange={onRateChange} readOnly
-                      inputProps={{style: getSignalStyles(formData.rate_local_per, formData.profit_local_per)}} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Job rate(local) paise" name='job_rate_local' value={formData.job_rate_local}
-                      errorMsg={formDataErr.job_rate_local} onChange={onRateChange} readOnly/>
-                  </FormRowItem>
-                </FormRow>
-              </Box>
             </Paper>
           </Grid>
           <Grid item sm={12} md={12} lg={2} xl={2}>
@@ -602,6 +568,128 @@ function Calculator({open, onClose, onSave, data}) {
             </Paper>
           </Grid>
         </Grid>
+        <Paper style={{marginTop: '0.5rem'}}>
+          <Typography variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Rates</Typography>
+          {/* <Divider /> */}
+          <Box style={{padding: '0.5rem'}}>
+            <Grid container spacing={1}>
+              <Grid item md={2} sm={12} xs={12}>
+                <Box>
+                  <FormInputText type="number" label="Brokerage %" name='brokerage_per' value={formData.brokerage_per}
+                    errorMsg={formDataErr.brokerage_per} onChange={onRateChange} />
+                </Box>
+                <Box style={{marginTop: '0.5rem'}}>
+                  <FormInputText type="number" label="Interest %" name='interest_per' value={formData.interest_per}
+                    errorMsg={formDataErr.interest_per} onChange={onRateChange} />
+                </Box>
+                <Box style={{marginTop: '0.5rem'}}>
+                  <FormInputText type="number" label="Cash discount %" name='cashdisc_per' value={formData.cashdisc_per}
+                    errorMsg={formDataErr.cashdisc_per} onChange={onRateChange} />
+                </Box>
+                <Box style={{marginTop: '0.5rem'}}>
+                  <FormInputText type="number" label="Others %" name='others_per' value={formData.others_per}
+                    errorMsg={formDataErr.others_per} onChange={onRateChange} />
+                </Box>
+                <Box style={{marginTop: '0.5rem'}}>
+                  <FormInputText type="number" label="Actual final cost" name='actual_final_cost' value={formData.actual_final_cost}
+                    errorMsg={formDataErr.actual_final_cost} onChange={onRateChange} readOnly />
+                </Box>
+              </Grid>
+              <Grid item md={1} sm={12} xs={12}></Grid>
+              <Grid item md={8} sm={12} xs={12}>
+                <TableLayout>
+                  <TableLayoutRow>
+                    <TableLayoutCell></TableLayoutCell>
+                    <TableLayoutCell></TableLayoutCell>
+                    <TableLayoutCell>Actual Cost based</TableLayoutCell>
+                    <TableLayoutCell>Market Cost based</TableLayoutCell>
+                  </TableLayoutRow>
+                  <TableLayoutRow>
+                    <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
+                    <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
+                    <TableLayoutCell className={classes.borderBottom}>
+                      <OutlinedInput type="number" name='actual_cost' value={formData.actual_cost}
+                        errorMsg={formDataErr.rate_others} readOnly fullWidth/>
+                    </TableLayoutCell>
+                    <TableLayoutCell className={classes.borderBottom}>
+                      <OutlinedInput type="number" name='market_cost' value={formData.market_cost}
+                        errorMsg={formDataErr.market_cost} onChange={onRateChange} fullWidth/>
+                    </TableLayoutCell>
+                  </TableLayoutRow>
+                  <TableLayoutRow>
+                    <TableLayoutCell>Process Charge</TableLayoutCell>
+                    <TableLayoutCell>
+                      <FormInputText type="number" name='process_charge' value={formData.process_charge}
+                        errorMsg={formDataErr.process_charge} onChange={onRateChange} fullWidth />
+                    </TableLayoutCell>
+                    <TableLayoutCell>
+                      <FormInputText type="number" name='process_charge' value={formData.process_charge} readOnly/>
+                    </TableLayoutCell>
+                    <TableLayoutCell>
+                      <FormInputText type="number" name='process_charge' value={formData.process_charge} readOnly/>
+                    </TableLayoutCell>
+                  </TableLayoutRow>
+                  <TableLayoutRow>
+                    <TableLayoutCell>Elongation/Shrinkage</TableLayoutCell>
+                    <TableLayoutCell>
+                      <FormInputText type="number" name='elong_shrink' value={formData.elong_shrink}
+                        errorMsg={formDataErr.elong_shrink} onChange={onRateChange} fullWidth />
+                    </TableLayoutCell>
+                    <TableLayoutCell>
+                      <FormInputText type="number" name='actual_elong_shrink' value={formData.actual_elong_shrink} readOnly/>
+                    </TableLayoutCell>
+                    <TableLayoutCell>
+                      <FormInputText type="number" name='market_elong_shrink' value={formData.market_elong_shrink} readOnly/>
+                    </TableLayoutCell>
+                  </TableLayoutRow>
+                  <TableLayoutRow>
+                    <TableLayoutCell>Wastage</TableLayoutCell>
+                    <TableLayoutCell>
+                      <FormInputText type="number" name='rate_wastage' value={formData.rate_wastage}
+                        errorMsg={formDataErr.rate_wastage} onChange={onRateChange} fullWidth />
+                    </TableLayoutCell>
+                    <TableLayoutCell>
+                      <FormInputText type="number" name='actual_rate_wastage' value={formData.actual_rate_wastage}
+                        errorMsg={formDataErr.actual_rate_wastage} readOnly/>
+                    </TableLayoutCell>
+                    <TableLayoutCell>
+                      <FormInputText type="number" name='market_rate_wastage' value={formData.market_rate_wastage}
+                        errorMsg={formDataErr.market_rate_wastage} readOnly/>
+                    </TableLayoutCell>
+                  </TableLayoutRow>
+                  <TableLayoutRow>
+                    <TableLayoutCell>Others</TableLayoutCell>
+                    <TableLayoutCell>
+                      <FormInputText type="number" name='rate_others' value={formData.rate_others}
+                        errorMsg={formDataErr.rate_others} onChange={onRateChange} fullWidth />
+                    </TableLayoutCell>
+                    <TableLayoutCell>
+                      <FormInputText type="number" name='actual_rate_others' value={formData.actual_rate_others}
+                        errorMsg={formDataErr.actual_rate_others} readOnly/>
+                    </TableLayoutCell>
+                    <TableLayoutCell>
+                      <FormInputText type="number" name='market_rate_others' value={formData.market_rate_others}
+                        errorMsg={formDataErr.market_rate_others} readOnly/>
+                    </TableLayoutCell>
+                  </TableLayoutRow>
+                  <TableLayoutRow>
+                    <TableLayoutCell className={classes.borderTop}></TableLayoutCell>
+                    <TableLayoutCell className={classes.borderTop}>Total</TableLayoutCell>
+                    <TableLayoutCell className={classes.borderTop}>
+                      <FormInputText type="number" name='actual_total' value={formData.actual_total}
+                        errorMsg={formDataErr.actual_total} readOnly/>
+                    </TableLayoutCell>
+                    <TableLayoutCell className={classes.borderTop}>
+                      <FormInputText type="number" name='market_total' value={formData.market_total}
+                        errorMsg={formDataErr.market_total} readOnly/>
+                    </TableLayoutCell>
+                  </TableLayoutRow>
+                </TableLayout>
+              </Grid>
+
+            </Grid>
+          </Box>
+        </Paper>
         <Box display="none">
           <PrintPage formData={formData} printRef={reportRef} warpCols={warpCols} weftCols={weftCols}/>
         </Box>
@@ -705,9 +793,7 @@ function PrintField({label, value, rs, margin, ...props}) {
   )
 }
 
-export default connect((state)=>({
-  qualities: state.qualities
-}), (dispatch)=>({
+export default connect((state)=>({settings: getSettings(state)}), (dispatch)=>({
   setNotification: (...args)=>{dispatch(setNotification.apply(this, args))},
   clearNotification: ()=>{dispatch(setNotification(null, null))},
 }))(Calculator);

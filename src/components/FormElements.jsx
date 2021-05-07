@@ -79,7 +79,6 @@ export function FormRowItem({children, ...props}) {
 }
 
 export function FormInput({children, info, ...props}) {
-  const classes = useStyles();
   const [anchorEl, setAnchorEl] = useState(null);
 
   const handlePopoverOpen = (event) => {
@@ -97,28 +96,6 @@ export function FormInput({children, info, ...props}) {
         <FormLabel component={Box} required={props.required}>
           {props.label}
         </FormLabel>
-          {info &&
-            <>
-            <HelpOutlineIcon className={classes.info} onMouseEnter={handlePopoverOpen} onMouseLeave={handlePopoverClose}/>
-            <Popover
-              style={{pointerEvents: 'none'}}
-              open={open}
-              anchorEl={anchorEl}
-              anchorOrigin={{
-                vertical: 'center',
-                horizontal: 'right',
-              }}
-              transformOrigin={{
-                vertical: 'center',
-                horizontal: 'left',
-              }}
-              onClose={handlePopoverClose}
-              disableRestoreFocus
-            >
-              {info}
-            </Popover>
-            </>
-          }
       </Box>
       {children}
     </Box>

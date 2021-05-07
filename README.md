@@ -34,6 +34,8 @@ Creating mirgations is easy: https://sequelize.org/v5/manual/migrations.html
 npx sequelize-cli model:generate --name Qualities --attributes name:string,notes:string,data:string
 npx sequelize-cli model:generate --name Misc --attributes last_opened_enc:string,install_date_enc:string,system_id:string,expiry_date_enc:string,activation_date_enc:string
 
+npx sequelize-cli model:generate --name Settings --attributes value:string
+
 npx sequelize-cli model:generate --name MASTER_COMPANY --attributes companyname:string,companyshortname:string,addressline:string,addressline1:string,city:string,state:string,pincode:string
 
 npx sequelize-cli model:generate --name MASTER_WORKROLE --attributes roletype:string,shifthours:real,rolewages:real,sort_priority:integer,desc:string
@@ -50,4 +52,5 @@ npx sequelize-cli model:generate --name DAILYWAGES --attributes empid:integer,wa
 
 npx sequelize-cli model:generate --name TRASNACTION --attributes empid:integer,pmttypeid:integer,compid:integer,transdate:date,amount:real,desc:string
 
-/** Seeders **/ npx sequelize-cli seed:generate --name default-users npx sequelize-cli seed:generate --name default-wagetype npx sequelize-cli seed:generate --name default-pmttype npx sequelize-cli seed:generate --name default-workrole
+/** Seeders **/ npx sequelize-cli seed:generate --name default-users npx sequelize-cli seed:generate --name default-wagetype
+npx sequelize-cli seed:generate --name default-settings
