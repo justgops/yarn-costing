@@ -110,9 +110,9 @@ export function TableLayoutRow({children}) {
   );
 }
 
-export function TableLayoutCell({children, className}) {
+export function TableLayoutCell({children, className, ...props}) {
   const classes = useStyles();
   return (
-    <td className={clsx(classes.tableCell, classes.noCellBorder, className)}>{children}</td>
+    <td className={clsx(classes.tableCell, classes.noCellBorder, className)} {...props}>{children}</td>
   )
 }

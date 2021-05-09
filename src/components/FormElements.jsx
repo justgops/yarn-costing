@@ -55,7 +55,7 @@ export function FormRow({print, children}) {
     5: 2,
     6: 2,
   }
-  sizingProps['md'] = sizingProps['sm'] = sizingProps['lg'] = factor[items] || 12;
+  sizingProps['md'] = sizingProps['sm'] = sizingProps['lg'] = factor[items] || true;
 
   if(print) {
     sizingProps['xs'] = factor;
@@ -81,15 +81,6 @@ export function FormRowItem({children, ...props}) {
 export function FormInput({children, info, ...props}) {
   const [anchorEl, setAnchorEl] = useState(null);
 
-  const handlePopoverOpen = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handlePopoverClose = () => {
-    setAnchorEl(null);
-  };
-
-  const open = Boolean(anchorEl);
   return (
     <Box>
       <Box display="flex" style={{alignItems: 'flex-end'}}>
@@ -98,6 +89,11 @@ export function FormInput({children, info, ...props}) {
         </FormLabel>
       </Box>
       {children}
+      {props.bottomLabel && <Box display="flex" style={{alignItems: 'flex-end'}}>
+        <FormLabel component={Box} required={props.required}>
+          {props.bottomLabel}
+        </FormLabel>
+      </Box>}
     </Box>
   );
 }
@@ -173,11 +169,11 @@ export class FormFieldValidator {
   }
 }
 
-export function FormInputText({InputIcon, errorMsg, required, onChange, label, readOnly, info, hasCopy, inputProps, ...props}) {
+export function FormInputText({InputIcon, errorMsg, required, onChange, label, bottomLabel, readOnly, info, hasCopy, inputProps, ...props}) {
   const classes = useStyles();
 
   return (
-    <FormInput required={required} label={label} info={info}>
+    <FormInput required={required} label={label} bottomLabel={bottomLabel} info={info}>
       <FormControl error={Boolean(errorMsg)} fullWidth>
         <OutlinedInput
           variant="outlined"
