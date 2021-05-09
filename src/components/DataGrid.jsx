@@ -19,9 +19,12 @@ const useStyles = makeStyles((theme)=>({
     margin: 0,
     textAlign: 'left',
     fontWeight: 'initial',
-    padding: theme.spacing(0.5),
+    padding: theme.spacing(1),
     borderRight: theme.mixins.border,
     borderBottom: theme.mixins.border,
+  },
+  tableCellLessPad: {
+    padding: theme.spacing(0.5),
   },
   noPadding: {
     padding: '0px',
@@ -113,6 +116,6 @@ export function TableLayoutRow({children}) {
 export function TableLayoutCell({children, className, ...props}) {
   const classes = useStyles();
   return (
-    <td className={clsx(classes.tableCell, classes.noCellBorder, className)} {...props}>{children}</td>
+    <td className={clsx(classes.tableCell, classes.tableCellLessPad, classes.noCellBorder, className)} {...props}>{children}</td>
   )
 }

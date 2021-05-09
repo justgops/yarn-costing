@@ -82,6 +82,7 @@ const getFormReducer = (settings)=>(state, action)=>{
 
   const warpPostReducer = (state, rowsChange=false)=>{
     state.warp_total_ends =  parse(state.warp_reed) * (parse(state.warp_panna) + parse(state.warp_reed_space));
+    state.warp_cramp = parse((parse(state.warp_lassa)-parse(state.warp_ltol))/parse(state.warp_lassa)*100);
     state.warp_weight = 0.0;
     state.warp_weight_wastage = 0.0;
 
@@ -122,7 +123,7 @@ const getFormReducer = (settings)=>(state, action)=>{
     for(let row of gridValue) {
       row.perct = rowsChange ? perct : row.perct;
       let weight =
-        parse((parse(state.weft_metre) * (parse(state.weft_panna) + parse(state.weft_reed_space)) * parse(state.weft_pick)/(1693.33*row.count))
+        parse((parse(state.weft_meter) * (parse(state.weft_panna) + parse(state.weft_reed_space)) * parse(state.weft_pick)/(1693.33*row.count))
           *parse(row.perct)/100);
 
       row.weight_wastage = parse(weight + (parse(row.wastage) * weight)/100);
@@ -137,10 +138,10 @@ const getFormReducer = (settings)=>(state, action)=>{
 
   const rateReducer = (state)=>{
     /* Gray fabric */
-    state.gray_brokerage_calc = parse(parse(state.gray_market_price)*parse(state.gray_brokerage));
-    state.gray_interest_calc = parse(state.prod_cost*parse(state.gray_interest));
-    state.gray_cashdisc_calc = parse(parse(state.gray_market_price)*parse(state.gray_cashdisc));
-    state.gray_others_calc = parse(state.prod_cost*parse(state.gray_others));
+    state.gray_brokerage_calc = parse(parse(state.gray_market_price)*parse(state.gray_brokerage)/100);
+    state.gray_interest_calc = parse(state.prod_cost*parse(state.gray_interest)/100);
+    state.gray_cashdisc_calc = parse(parse(state.gray_market_price)*parse(state.gray_cashdisc)/100);
+    state.gray_others_calc = parse(state.prod_cost*parse(state.gray_others)/100);
     state.gray_total = parse(state.prod_cost + state.gray_brokerage_calc + state.gray_interest_calc
       + state.gray_cashdisc_calc + state.gray_others_calc);
 
@@ -165,13 +166,13 @@ const getFormReducer = (settings)=>(state, action)=>{
     state.fin_gray_wastage = parse((parse(state.fin_gray_price)+parse(state.fin_process_charge)+state.fin_gray_elongshrink)
       *parse(state.fin_wastage)/100);
 
-    state.fin_prod_total = parse(state.prod_cost+parse(state.fin_process_charge)+state.fin_prod_elongshrink
+    state.fin_prod_total = parse(state.prod_cost+parse(state.fin_process_charge)-state.fin_prod_elongshrink
       +state.fin_prod_wastage+parse(state.fin_packing)+parse(state.fin_others));
-    state.fin_gray_total = parse(parse(state.fin_gray_price)+parse(state.fin_process_charge)+state.fin_gray_elongshrink
+    state.fin_gray_total = parse(parse(state.fin_gray_price)+parse(state.fin_process_charge)-state.fin_gray_elongshrink
       +state.fin_gray_wastage+parse(state.fin_packing)+parse(state.fin_others));
 
-    state.fin_prod_profit = parse((parse(state.fin_market_price)-state.fin_prod_total)/state.fin_prod_total);
-    state.fin_gray_profit = parse((parse(state.fin_market_price)-state.fin_gray_total)/state.fin_gray_total);
+    state.fin_prod_profit = parse((parse(state.fin_market_price)-state.fin_prod_total)/state.fin_prod_total*100);
+    state.fin_gray_profit = parse((parse(state.fin_market_price)-state.fin_gray_total)/state.fin_gray_total*100);
     return state;
   }
 
@@ -294,9 +295,9 @@ function Calculator({open, onClose, onSave, data, settings}) {
   useEffect(()=>{
     formDispatch({
       type: 'init',
-      value: data || {
-        set_length_count: 1693.33,
-        weft_metre: 1,
+      value: {
+        ...data,
+        weft_meter: 1,
       },
     });
   }, [data]);
@@ -363,36 +364,36 @@ function Calculator({open, onClose, onSave, data, settings}) {
       accessor: 'count',
     },
     {
-      Header: 'Perct.',
+      Header: 'Perct.(%)',
       accessor: 'perct',
     },
     {
-      Header: 'Wastage',
+      Header: 'Wastage(%)',
       accessor: 'wastage',
     },
     {
-      Header: 'Rate',
+      Header: 'Rate(Per Kg)',
       accessor: 'rate',
     },
     {
-      Header: 'Sizing rate',
+      Header: 'Sizing rate(Per Kg)',
       accessor: 'sizing_rate',
       Footer: 'check;',
     },
     {
-      Header: 'Weight(w/wastage)',
+      Header: 'Weight w/wastage(Kg)',
       accessor: 'weight_wastage',
       readOnly: true,
       showTotal: true,
     },
     {
-      Header: 'Warp cost',
+      Header: 'Warp cost(Rs)',
       accessor: 'cost',
       readOnly: true,
       showTotal: true,
     },
     {
-      Header: 'Warp sizing cost',
+      Header: 'Warp sizing cost(Rs)',
       accessor: 'sizing_cost',
       readOnly: true,
       showTotal: true,
@@ -405,25 +406,25 @@ function Calculator({open, onClose, onSave, data, settings}) {
       accessor: 'count',
     },
     {
-      Header: 'Perct.',
+      Header: 'Perct.(%)',
       accessor: 'perct',
     },
     {
-      Header: 'Wastage',
+      Header: 'Wastage(%)',
       accessor: 'wastage',
     },
     {
-      Header: 'Rate',
+      Header: 'Rate(Rs per Kg)',
       accessor: 'rate',
     },
     {
-      Header: 'Weight(w/wastage)',
+      Header: 'Weight w/wastage(Kg)',
       accessor: 'weight_wastage',
       readOnly: true,
       showTotal: true,
     },
     {
-      Header: 'Weft cost',
+      Header: 'Weft cost(Rs)',
       accessor: 'cost',
       readOnly: true,
       showTotal: true,
@@ -485,7 +486,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
               <Box style={{padding: '0.5rem'}}>
                 <FormRow>
                   <FormRowItem>
-                    <FormInputText type="number" type="number" label="EPI(Reed)" name='warp_reed' value={formData.warp_reed}
+                    <FormInputText type="number" type="number" label="EPI/Reed" name='warp_reed' value={formData.warp_reed}
                       errorMsg={formDataErr.warp_reed} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
@@ -505,8 +506,8 @@ function Calculator({open, onClose, onSave, data, settings}) {
                       errorMsg={formDataErr.warp_ltol} onChange={onWarpTextChange} />
                   </FormRowItem>
                   <FormRowItem>
-                    <FormInputText type="number" label="Lassa L to L" name='warp_lassa_ltol' value={formData.warp_lassa_ltol}
-                      errorMsg={formDataErr.warp_lassa_ltol} onChange={onWarpTextChange} />
+                    <FormInputText type="number" label="Cramp(%)" name='warp_cramp' value={formData.warp_cramp}
+                      errorMsg={formDataErr.warp_cramp} onChange={onWarpTextChange} readOnly/>
                   </FormRowItem>
                   <FormRowItem>
                     <FormInputText type="number" label="Total ends" name='warp_total_ends' value={formData.warp_total_ends}
@@ -529,15 +530,15 @@ function Calculator({open, onClose, onSave, data, settings}) {
               <Box style={{padding: '0.5rem'}}>
                 <FormRow>
                   <FormRowItem>
-                    <FormInputText type="number" label="Meter" name='weft_metre' value={formData.weft_metre}
-                      errorMsg={formDataErr.weft_metre} onChange={onWeftTextChange} />
+                    <FormInputText type="number" label="Meter" name='weft_meter' value={formData.weft_meter}
+                      errorMsg={formDataErr.weft_meter} readOnly/>
                   </FormRowItem>
                   <FormRowItem>
-                    <FormInputText type="number" label="Width/Panna" name='weft_panna' value={formData.weft_panna}
+                    <FormInputText type="number" label="Width/Panna(Inch)" name='weft_panna' value={formData.weft_panna}
                       errorMsg={formDataErr.panna} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
-                    <FormInputText type="number" label="Exta Reed Space" name='weft_reed_space' value={formData.weft_reed_space}
+                    <FormInputText type="number" label="Exta Reed Space(Inch)" name='weft_reed_space' value={formData.weft_reed_space}
                       errorMsg={formDataErr.reed_space} onChange={onWeftTextChange} />
                   </FormRowItem>
                   <FormRowItem>
@@ -567,7 +568,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
           </Grid>
           <Grid item sm={12} md={12} lg={2} xl={2}>
             <Paper style={{height: '100%'}}>
-              <Typography variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Summary</Typography>
+              <Typography variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Summary(gram)</Typography>
               <Divider />
               <Box style={{padding: '0.5rem'}}>
                 <FormInputText type="number" label="Warp weight" name='warp_weight' value={formData.warp_weight} readOnly />
@@ -902,7 +903,7 @@ function PrintPage({printRef, formData, warpCols, weftCols}) {
               <h3>Weft</h3>
             </Box>
             <Box display="flex" flexWrap="wrap">
-              <PrintField label="Meter" value={formData.weft_metre} />
+              <PrintField label="Meter" value={formData.weft_meter} />
               <PrintField margin label="Panna" value={formData.weft_panna} />
               <PrintField margin label="Reed space" value={formData.weft_reed_space} />
               <PrintField margin label="Pick" value={formData.weft_pick} />
