@@ -4,7 +4,7 @@ import { connect } from 'react-redux';
 import DataGrid, { TableLayout, TableLayoutCell, TableLayoutRow } from '../components/DataGrid';
 import { setNotification } from '../store/reducers/notification';
 import _ from 'lodash';
-import { FormRowItem, FormInputText, FormRow } from '../components/FormElements';
+import { FormRowItem, FormInputText, FormRow, FormInputSelect, FormInfo } from '../components/FormElements';
 import DeleteForeverRoundedIcon from '@material-ui/icons/DeleteForeverRounded';
 import CloseOutlinedIcon from '@material-ui/icons/CloseOutlined';
 import ReactToPrint from 'react-to-print';
@@ -63,20 +63,31 @@ const useStyles = makeStyles((theme)=>({
   }
 }));
 
+function getProdCostWithBreakup(state) {
+  let prod_cost = 0;
+  let breakup = {
+    "Total warp cost": 0,
+    "Total sizing cost": 0,
+    "Total weft cost": 0,
+    "Weaving charges": state.weaving_charges,
+  };
+  for(let row of state['warps'] || []) {
+    breakup["Total warp cost"] += row.cost;
+    breakup["Total sizing cost"] += row.sizing_cost;
+  }
+  for(let row of state['wefts'] || []) {
+    breakup["Total weft cost"]  += row.cost;
+  }
+  prod_cost += breakup["Total warp cost"] + breakup["Total sizing cost"] + breakup["Total weft cost"] + breakup["Weaving charges"];
+  return [parse(prod_cost), breakup];
+}
+
 const getFormReducer = (settings)=>(state, action)=>{
   const warpWeftReducer = (state)=>{
-    state.prod_cost = 0;
+
     state.total_weight = parse(state.warp_weight + state.weft_weight);
     state.total_weight_wastage = parse(state.warp_weight_wastage + state.weft_weight_wastage);
-
-    for(let row of state['warps'] || []) {
-      state.prod_cost  += row.cost + row.sizing_cost;
-    }
-    for(let row of state['wefts'] || []) {
-      state.prod_cost  += row.cost;
-    }
-    state.prod_cost += state.weaving_charges;
-    state.prod_cost = parse(state.prod_cost);
+    [state.prod_cost, state.breakups.prod_cost] = getProdCostWithBreakup(state);
     return state;
   }
 
@@ -145,30 +156,33 @@ const getFormReducer = (settings)=>(state, action)=>{
     state.gray_total = parse(state.prod_cost + state.gray_brokerage_calc + state.gray_interest_calc
       + state.gray_cashdisc_calc + state.gray_others_calc);
 
-    state.gray_profit =  parse(parse(state.gray_market_price)/state.gray_total-1);
+    state.gray_profit =  parse((parse(state.gray_market_price)/state.gray_total-1)*100);
+    let totalWarpCost = 0;
     let totalWarpSizCost = 0;
     let totalWeftCost = 0;
     for(let row of state['warps'] || []) {
+      totalWarpCost += row.cost;
       totalWarpSizCost += row.sizing_cost;
     }
     for(let row of state['wefts'] || []) {
       state.totalWeftCost  += row.cost;
     }
-    state.gray_revjobrate = parse(parse(state.gray_market_price)-state.gray_brokerage_calc-state.gray_interest_calc
-      -state.gray_cashdisc_calc-state.gray_others_calc-totalWarpSizCost-totalWeftCost/state.weft_pick);
+    state.gray_revjobrate = parse((parse(state.gray_market_price)-state.gray_brokerage_calc-state.gray_interest_calc
+      -state.gray_cashdisc_calc-state.gray_others_calc-totalWarpCost-totalWarpSizCost-totalWeftCost)/state.weft_pick);
 
     /* Finish fabric */
-    state.fin_prod_elongshrink =  parse(state.prod_cost*parse(state.fin_elongshrink)/100);
-    state.fin_gray_elongshrink =  parse(parse(state.fin_gray_price)*parse(state.fin_elongshrink)/100);
+    state.fin_prod_elongshrink = parse(state.prod_cost*parse(state.fin_elongshrink)/100);
+    state.fin_gray_elongshrink = parse(parse(state.fin_gray_price)*parse(state.fin_elongshrink)/100);
 
     state.fin_prod_wastage = parse((state.prod_cost+parse(state.fin_process_charge)+state.fin_prod_elongshrink)
       *parse(state.fin_wastage)/100);
     state.fin_gray_wastage = parse((parse(state.fin_gray_price)+parse(state.fin_process_charge)+state.fin_gray_elongshrink)
       *parse(state.fin_wastage)/100);
 
-    state.fin_prod_total = parse(state.prod_cost+parse(state.fin_process_charge)-state.fin_prod_elongshrink
+    let elongshrink = state.fin_elongshrink_opt === 'elongation' ? -1 : 1;
+    state.fin_prod_total = parse(state.prod_cost+parse(state.fin_process_charge)+elongshrink*state.fin_prod_elongshrink
       +state.fin_prod_wastage+parse(state.fin_packing)+parse(state.fin_others));
-    state.fin_gray_total = parse(parse(state.fin_gray_price)+parse(state.fin_process_charge)-state.fin_gray_elongshrink
+    state.fin_gray_total = parse(parse(state.fin_gray_price)+parse(state.fin_process_charge)+elongshrink*state.fin_gray_elongshrink
       +state.fin_gray_wastage+parse(state.fin_packing)+parse(state.fin_others));
 
     state.fin_prod_profit = parse((parse(state.fin_market_price)-state.fin_prod_total)/state.fin_prod_total*100);
@@ -296,8 +310,10 @@ function Calculator({open, onClose, onSave, data, settings}) {
     formDispatch({
       type: 'init',
       value: {
+        fin_elongshrink_opt: 'elongation',
         ...data,
         weft_meter: 1,
+        breakups: {},
       },
     });
   }, [data]);
@@ -481,7 +497,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
         <Grid container spacing={1}>
           <Grid item sm={12} md={12} lg={10} xl={10}>
             <Paper style={{height: '100%'}}>
-              <Typography variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Warp</Typography>
+              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Warp</Typography>
               <Divider />
               <Box style={{padding: '0.5rem'}}>
                 <FormRow>
@@ -525,7 +541,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
                 });
               }}>Add warp</Button>
               <Divider style={{marginTop: '0.5rem'}} />
-              <Typography variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Weft</Typography>
+              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Weft</Typography>
               <Divider />
               <Box style={{padding: '0.5rem'}}>
                 <FormRow>
@@ -568,7 +584,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
           </Grid>
           <Grid item sm={12} md={12} lg={2} xl={2}>
             <Paper style={{height: '100%'}}>
-              <Typography variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Summary(gram)</Typography>
+              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Summary(Kg)</Typography>
               <Divider />
               <Box style={{padding: '0.5rem'}}>
                 <FormInputText type="number" label="Warp weight" name='warp_weight' value={formData.warp_weight} readOnly />
@@ -578,7 +594,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
                 </Box>
                 <Box style={{marginTop: '0.5rem'}}>
                   <FormInputText type="number" label="Total weight" name='total_weight'
-                    value={formData.total_weight} readOnly />
+                    value={formData.total_weight} readOnly highlight/>
                 </Box>
                 <Box style={{marginTop: '0.5rem'}}>
                   <FormInputText type="number" label="Warp weight w/wastage" name='warp_weight_wastage'
@@ -590,14 +606,14 @@ function Calculator({open, onClose, onSave, data, settings}) {
                 </Box>
                 <Box style={{marginTop: '0.5rem'}}>
                   <FormInputText type="number" label="Total weight w/wastage" name='total_weight_wastage'
-                    value={formData.total_weight_wastage} readOnly />
+                    value={formData.total_weight_wastage} readOnly highlight/>
                 </Box>
               </Box>
             </Paper>
           </Grid>
         </Grid>
         <Paper style={{marginTop: '0.5rem'}}>
-          <Typography variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Cost breakup</Typography>
+          <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Cost breakup</Typography>
           <Divider />
           <Box style={{padding: '0.5rem'}}>
             <Grid container spacing={1}>
@@ -605,20 +621,38 @@ function Calculator({open, onClose, onSave, data, settings}) {
                 <TableLayout>
                   <TableLayoutRow>
                     <TableLayoutCell colspan={4} className={classes.borderBottom} style={{textAlign: 'center'}}>
-                      <Typography>Gray Fabric</Typography>
+                      <Typography color="secondary">Gray Fabric</Typography>
                     </TableLayoutCell>
                   </TableLayoutRow>
                   <TableLayoutRow>
                     <TableLayoutCell></TableLayoutCell>
                     <TableLayoutCell></TableLayoutCell>
-                    <TableLayoutCell>Production cost</TableLayoutCell>
+                    <TableLayoutCell>
+                      <Box>
+                      Production cost
+                      <FormInfo>
+                        <Box p={1}>
+                          <TableLayout>
+                            {formData.breakups?.prod_cost && Object.keys(formData.breakups.prod_cost).map((b)=>{
+                              return (
+                                <TableLayoutRow>
+                                  <TableLayoutCell>{b}</TableLayoutCell>
+                                  <TableLayoutCell>{formData.breakups.prod_cost[b]}</TableLayoutCell>
+                                </TableLayoutRow>
+                              )
+                            })}
+                          </TableLayout>
+                        </Box>
+                      </FormInfo>
+                      </Box>
+                    </TableLayoutCell>
                   </TableLayoutRow>
                   <TableLayoutRow>
                     <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
                     <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
                     <TableLayoutCell className={classes.borderBottom}>
                       <FormInputText type="number" name='prod_cost' value={formData.prod_cost}
-                        errorMsg={formDataErr.prod_cost} onChange={onRateChange} readOnly />
+                         readOnly />
                     </TableLayoutCell>
                   </TableLayoutRow>
                   <TableLayoutRow>
@@ -675,21 +709,21 @@ function Calculator({open, onClose, onSave, data, settings}) {
                     <TableLayoutCell className={classes.borderTop}></TableLayoutCell>
                     <TableLayoutCell className={clsx(classes.borderTop, classes.alignRight)}>Total</TableLayoutCell>
                     <TableLayoutCell className={classes.borderTop}>
-                      <FormInputText type="number" name='gray_total' value={formData.gray_total} readOnly />
+                      <FormInputText type="number" name='gray_total' value={formData.gray_total} readOnly highlight/>
                     </TableLayoutCell>
                   </TableLayoutRow>
                   <TableLayoutRow>
                     <TableLayoutCell></TableLayoutCell>
                     <TableLayoutCell className={classes.alignRight}>Profit(%)</TableLayoutCell>
                     <TableLayoutCell>
-                      <FormInputText type="number" name='gray_profit' value={formData.gray_profit} readOnly />
+                      <FormInputText type="number" name='gray_profit' value={formData.gray_profit} readOnly profit/>
                     </TableLayoutCell>
                   </TableLayoutRow>
                   <TableLayoutRow>
                     <TableLayoutCell></TableLayoutCell>
-                    <TableLayoutCell className={classes.alignRight}>Reverse Job Rate(%)</TableLayoutCell>
+                    <TableLayoutCell className={classes.alignRight}>Reverse Job Rate(Paise)</TableLayoutCell>
                     <TableLayoutCell>
-                      <FormInputText type="number" name='gray_revjobrate' value={formData.gray_revjobrate} readOnly />
+                      <FormInputText type="number" name='gray_revjobrate' value={formData.gray_revjobrate} readOnly highlight/>
                     </TableLayoutCell>
                   </TableLayoutRow>
                 </TableLayout>
@@ -699,7 +733,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
                 <TableLayout>
                   <TableLayoutRow>
                     <TableLayoutCell colspan={4} className={classes.borderBottom} style={{textAlign: 'center'}}>
-                      <Typography>Finish Fabric</Typography>
+                      <Typography color="secondary">Finish Fabric</Typography>
                     </TableLayoutCell>
                   </TableLayoutRow>
                   <TableLayoutRow>
@@ -734,10 +768,15 @@ function Calculator({open, onClose, onSave, data, settings}) {
                     </TableLayoutCell>
                   </TableLayoutRow>
                   <TableLayoutRow>
-                    <TableLayoutCell>Elongation/Shrinkage(%)</TableLayoutCell>
+                    <TableLayoutCell>
+                      <FormInputSelect name='fin_elongshrink_opt' value={formData.fin_elongshrink_opt} options={[
+                        {label:'Elongation %', value: 'elongation'},
+                        {label:'Shrinkage %', value: 'shrinkage'},
+                      ]} onChange={onRateChange} />
+                    </TableLayoutCell>
                     <TableLayoutCell>
                       <FormInputText type="number" name='fin_elongshrink' value={formData.fin_elongshrink}
-                        errorMsg={formDataErr.fin_elongshrink} onChange={onRateChange} fullWidth />
+                        onChange={onRateChange} fullWidth />
                     </TableLayoutCell>
                     <TableLayoutCell>
                       <FormInputText type="number" name='fin_prod_elongshrink' value={formData.fin_prod_elongshrink} readOnly/>
@@ -794,11 +833,11 @@ function Calculator({open, onClose, onSave, data, settings}) {
                     <TableLayoutCell className={clsx(classes.borderTop, classes.alignRight)}>Total</TableLayoutCell>
                     <TableLayoutCell className={classes.borderTop}>
                       <FormInputText type="number" name='fin_prod_total' value={formData.fin_prod_total}
-                        readOnly/>
+                        readOnly highlight />
                     </TableLayoutCell>
                     <TableLayoutCell className={classes.borderTop}>
                       <FormInputText type="number" name='fin_gray_total' value={formData.fin_gray_total}
-                        readOnly/>
+                        readOnly highlight/>
                     </TableLayoutCell>
                   </TableLayoutRow>
                   <TableLayoutRow>
@@ -815,11 +854,11 @@ function Calculator({open, onClose, onSave, data, settings}) {
                     </TableLayoutCell>
                     <TableLayoutCell>
                       <FormInputText type="number" name='fin_prod_profit' value={formData.fin_prod_profit}
-                        readOnly/>
+                        readOnly profit/>
                     </TableLayoutCell>
                     <TableLayoutCell>
                       <FormInputText type="number" name='fin_gray_profit' value={formData.fin_gray_profit}
-                        readOnly/>
+                        readOnly profit/>
                     </TableLayoutCell>
                   </TableLayoutRow>
                 </TableLayout>

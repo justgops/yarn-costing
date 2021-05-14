@@ -17,6 +17,22 @@ const useStyles = makeStyles((theme) => ({
   formInput: {
     marginTop: '0.25rem'
   },
+  formInputHighlight: {
+    fontWeight: 'bold',
+    '& .MuiOutlinedInput-notchedOutline': {
+      borderColor: theme.palette.grey[600],
+    }
+  },
+  inputProfit: {
+    '& .MuiOutlinedInput-notchedOutline': {
+      borderColor: theme.palette.success.main,
+      borderWidth: '2px',
+  }},
+  inputLoss: {
+    '& .MuiOutlinedInput-notchedOutline': {
+      borderColor: theme.palette.error.main,
+      borderWidth: '2px',
+  }},
   autoComplete: {
     padding: theme.spacing(0.25),
   },
@@ -78,15 +94,48 @@ export function FormRowItem({children, ...props}) {
   );
 }
 
-export function FormInput({children, info, ...props}) {
+export function FormInfo({children}) {
+  const classes = useStyles();
   const [anchorEl, setAnchorEl] = useState(null);
+  const handlePopoverOpen = (event) => {
+    setAnchorEl(event.currentTarget);
+  };
 
+  const handlePopoverClose = () => {
+    setAnchorEl(null);
+  };
+  return (
+    <>
+    <HelpOutlineIcon className={classes.info} onMouseEnter={handlePopoverOpen} onMouseLeave={handlePopoverClose}/>
+    <Popover
+      style={{pointerEvents: 'none'}}
+      open={Boolean(anchorEl)}
+      anchorEl={anchorEl}
+      anchorOrigin={{
+        vertical: 'center',
+        horizontal: 'right',
+      }}
+      transformOrigin={{
+        vertical: 'center',
+        horizontal: 'left',
+      }}
+      onClose={handlePopoverClose}
+      disableRestoreFocus
+    >
+      {children}
+    </Popover>
+    </>
+  )
+}
+
+export function FormInput({children, info, ...props}) {
   return (
     <Box>
-      <Box display="flex" style={{alignItems: 'flex-end'}}>
+      <Box display="flex" style={{alignItems: 'flex-end', marginBottom: '4px'}}>
         <FormLabel component={Box} required={props.required}>
           {props.label}
         </FormLabel>
+        {info && <FormInfo>{info}</FormInfo>}
       </Box>
       {children}
       {props.bottomLabel && <Box display="flex" style={{alignItems: 'flex-end'}}>
@@ -169,7 +218,7 @@ export class FormFieldValidator {
   }
 }
 
-export function FormInputText({InputIcon, errorMsg, required, onChange, label, bottomLabel, readOnly, info, hasCopy, inputProps, ...props}) {
+export function FormInputText({InputIcon, errorMsg, required, onChange, label, bottomLabel, readOnly, info, hasCopy, inputProps, highlight, profit, ...props}) {
   const classes = useStyles();
 
   return (
@@ -184,7 +233,11 @@ export function FormInputText({InputIcon, errorMsg, required, onChange, label, b
             <IconButton><FileCopyOutlinedIcon /></IconButton> : null
           }
           fullWidth
-          className={classes.formInput}
+          className={clsx(
+            classes.formInput,
+            highlight && classes.formInputHighlight,
+            profit && props.value && (props.value > 0 ? classes.inputProfit : classes.inputLoss)
+          )}
           error={Boolean(errorMsg)}
           data-label={label}
           data-required={required}
