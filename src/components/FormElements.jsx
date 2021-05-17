@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
-import { Box, OutlinedInput, CircularProgress, Divider, FormControl, FormHelperText, FormLabel, Grid, InputAdornment, MenuItem, Popover, Select, TextField, Typography, IconButton } from '@material-ui/core';
+import { Box, OutlinedInput, CircularProgress, Divider, FormControl, FormHelperText, FormLabel, Grid, InputAdornment, MenuItem, Popover, Select, TextField, Typography, IconButton, RadioGroup, FormControlLabel, Radio } from '@material-ui/core';
 import Autocomplete from '@material-ui/lab/Autocomplete';
 import { ColorPalette, ColorButton } from 'material-ui-color';
 import HelpOutlineIcon from '@material-ui/icons/HelpOutline';
@@ -257,6 +257,20 @@ export function FormInputText({InputIcon, errorMsg, required, onChange, label, b
   );
 }
 
+export function FormInputRadio({label, options}) {
+  return (
+    <FormInput label={label}>
+      <FormControl component="fieldset">
+        <RadioGroup row aria-label="position" name="position" defaultValue="meter">
+          {(options||[]).map((o)=>{
+            return <FormControlLabel value={o.value} control={<Radio color="primary" />} label={o.label} />;
+          })}
+        </RadioGroup>
+      </FormControl>
+    </FormInput>
+  );
+}
+
 export function FormInputSelect({
     errorMsg, required, onChange, label, options, firstEmpty=false, loading, multiple, hasSearch=false,
     labelKey='label', valueKey='value', ...props}) {
@@ -331,93 +345,6 @@ export function FormInputSelect({
       </FormInput>
     );
   }
-}
-
-export function FormInputColor({
-    errorMsg, required, onChange, label, value}) {
-  const classes = useStyles();
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const palette = {
-    C1: "#FF6633",
-    C2: "#FFB399",
-    C3: "#FF33FF",
-    C4: "#FFFF99",
-    C5: "#00B3E6",
-    C6: "#E6B333",
-    C7: "#3366E6",
-    C8: "#999966",
-    C9: "#99FF99",
-    C10: "#B34D4D",
-    C11: "#80B300",
-    C12: "#809900",
-    C13: "#E6B3B3",
-    C14: "#6680B3",
-    C15: "#66991A",
-    C16: "#FF99E6",
-    C17: "#CCFF1A",
-    C18: "#FF1A66",
-    C19: "#E6331A",
-    C20: "#33FFCC",
-    C21: "#66994D",
-    C22: "#B366CC",
-    C23: "#4D8000",
-    C24: "#B33300",
-    C25: "#CC80CC",
-    C26: "#66664D",
-    C27: "#991AFF",
-    C28: "#E666FF",
-    C29: "#4DB3FF",
-    C30: "#1AB399",
-    C31: "#E666B3",
-    C32: "#33991A",
-    C33: "#CC9999",
-    C34: "#B3B31A",
-    C35: "#00E680",
-    C36: "#4D8066",
-    C37: "#809980",
-    C38: "#E6FF80",
-    C39: "#1AFF33",
-    C40: "#999933",
-    C41: "#FF3380",
-    C42: "#CCCC00",
-    C43: "#66E64D",
-    C44: "#4D80CC",
-    C45: "#9900B3",
-    C46: "#E64D66",
-    C47: "#4DB380",
-    C48: "#FF4D4D",
-    C49: "#99E6E6",
-  };
-
-  onChange = onChange || (()=>{});
-
-  return (
-    <FormInput required={required} label={label}>
-      <Popover
-        anchorOrigin={{
-          vertical: 'top',
-          horizontal: 'center',
-        }}
-        transformOrigin={{
-          vertical: 'bottom',
-          horizontal: 'center',
-        }}
-        open={Boolean(anchorEl)}
-        onClose={()=>setAnchorEl(null)}
-        anchorEl={anchorEl}
-        PaperProps={{
-          style: {maxWidth: '200px'}
-        }}
-      >
-        <ColorPalette palette={palette} onSelect={(k, v)=>{
-          onChange(v);
-          setAnchorEl(null);
-        }}/>
-      </Popover>
-      <ColorButton disableRipple className={classes.formInput} color={value} onClick={(e)=>setAnchorEl(e.target)}
-      />
-    </FormInput>
-  );
 }
 
 export function FormHeader({title, hasTopDivider, loadingText}) {

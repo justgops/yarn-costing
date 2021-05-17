@@ -4,7 +4,12 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
    try {
     await queryInterface.bulkInsert('Settings', [{
-      value: JSON.stringify({"length_per_count": 1693.33}),
+      value: JSON.stringify({
+        "lassa_unit":"meter",
+        "warp_rate_gst": 5,
+        "sizing_rate_gst": 5,
+        "weft_rate_gst": 5
+      }),
       createdAt: new Date(),
       updatedAt: new Date(),
     }])

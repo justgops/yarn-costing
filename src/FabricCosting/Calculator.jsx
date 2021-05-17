@@ -1,4 +1,4 @@
-import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Card, CardContent, CardHeader, Dialog, DialogActions, DialogContent, DialogTitle, Divider, Grid, IconButton, makeStyles, OutlinedInput, Paper, Slide, Typography, useTheme } from '@material-ui/core';
+import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Card, CardContent, CardHeader, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, Grid, IconButton, makeStyles, OutlinedInput, Paper, Slide, Tab, Tabs, Typography, useTheme } from '@material-ui/core';
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { connect } from 'react-redux';
 import DataGrid, { TableLayout, TableLayoutCell, TableLayoutRow } from '../components/DataGrid';
@@ -10,6 +10,8 @@ import CloseOutlinedIcon from '@material-ui/icons/CloseOutlined';
 import ReactToPrint from 'react-to-print';
 import { getSettings } from '../store/reducers/settings';
 import clsx from 'clsx';
+import TabPanel from '../components/TabPanel';
+import { LASSA_UNIT_OPTIONS } from '../Settings';
 
 const ROUND_DECIMAL = 5;
 
@@ -101,19 +103,21 @@ const getFormReducer = (settings)=>(state, action)=>{
     if(!gridValue) return state;
 
     let perct = (100/gridValue.length);
-
+    let length_per_count = parse(_.find(LASSA_UNIT_OPTIONS, (o)=>o.value==settings.lassa_unit).figure);
     for(let row of gridValue) {
       row.perct = rowsChange ? perct : row.perct;
       let weight =
-        parse((state.warp_total_ends * parse(state.warp_lassa)/parse(settings.length_per_count)/parse(row.count)/parse(state.warp_ltol))
+        parse((state.warp_total_ends * parse(state.warp_lassa)/length_per_count/parse(row.count)/parse(state.warp_ltol))
           * parse(row.perct)/100);
 
       row.weight_wastage = parse(weight + (parse(row.wastage) * weight)/100);
       state.warp_weight += weight;
       state.warp_weight_wastage += row.weight_wastage;
 
-      row.cost = parse(row.weight_wastage * parse(row.rate));
-      row.sizing_cost = parse(row.weight_wastage * parse(row.sizing_rate));
+      let rate = row.rate - (row.rate_wgst ? row.rate*settings.warp_rate_gst/100 : 0);
+      let sizing_rate = row.sizing_rate - (row.sizing_rate_wgst ? row.rate*settings.sizing_rate_gst/100 : 0);
+      row.cost = parse(row.weight_wastage * parse(rate));
+      row.sizing_cost = parse(row.weight_wastage * parse(sizing_rate));
     }
 
     state.warp_weight = parse(state.warp_weight);
@@ -141,7 +145,8 @@ const getFormReducer = (settings)=>(state, action)=>{
       state.weft_weight += weight;
       state.weft_weight_wastage += row.weight_wastage;
 
-      row.cost = parse(row.weight_wastage * parse(row.rate));
+      let rate = row.rate - (row.rate_wgst ? row.rate*settings.weft_rate_gst/100 : 0);
+      row.cost = parse(row.weight_wastage * parse(rate));
     }
 
     return state;
@@ -284,7 +289,10 @@ function getGridCols(basePath, formDispatch, postReducer, otherCols, cellClassNa
         return <OutlinedInput fullWidth inputProps={{style: {fontWeight: 'bold'}}} className={cellClassName} value={total} type="number" readOnly={true} />
       } : '',
       Cell: ({value, row, column})=>{
-        return <OutlinedInput fullWidth className={cellClassName} type="number" value={value} readOnly={col.readOnly} onChange={(e)=>{
+        let gstKey = column.id+'_wgst';
+        return (
+        <Box display="flex">
+        <OutlinedInput fullWidth className={cellClassName} type="number" value={value} readOnly={col.readOnly} onChange={(e)=>{
           let value = e.target.value;
           formDispatch({
             type: 'set_value',
@@ -293,6 +301,26 @@ function getGridCols(basePath, formDispatch, postReducer, otherCols, cellClassNa
             postReducer: postReducer,
           });
         }} />
+        {col.GST &&<FormControlLabel
+          control={
+            <Checkbox
+              color="primary"
+              size="small"
+              checked={row.values[gstKey]}
+              onChange={(e)=>{
+                let value = e.target.checked;
+                formDispatch({
+                  type: 'set_value',
+                  path: basePath.concat([row.index, gstKey]),
+                  value: value,
+                  postReducer: postReducer,
+                });
+              }}
+            />
+          }
+          label="w/GST"
+        />}
+        </Box>)
       }
     });
   }
@@ -390,11 +418,13 @@ function Calculator({open, onClose, onSave, data, settings}) {
     {
       Header: 'Rate(Per Kg)',
       accessor: 'rate',
+      GST: true,
     },
     {
       Header: 'Sizing rate(Per Kg)',
       accessor: 'sizing_rate',
       Footer: 'check;',
+      GST: true,
     },
     {
       Header: 'Weight w/wastage(Kg)',
@@ -432,6 +462,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
     {
       Header: 'Rate(Rs per Kg)',
       accessor: 'rate',
+      GST: true,
     },
     {
       Header: 'Weight w/wastage(Kg)',
@@ -474,6 +505,12 @@ function Calculator({open, onClose, onSave, data, settings}) {
     return styles;
   }
 
+  const [tabvalue, setTabvalue] = React.useState(0);
+
+  const tabChange = (event, newValue) => {
+    setTabvalue(newValue);
+  };
+
   return (
     <Dialog onClose={onClose} disableEscapeKeyDown open={open} fullScreen scroll='paper' TransitionProps={{
       enter: false,
@@ -494,382 +531,396 @@ function Calculator({open, onClose, onSave, data, settings}) {
               errorMsg={formDataErr.notes} onChange={onTextChange} />
           </FormRowItem>
         </FormRow>
-        <Grid container spacing={1}>
-          <Grid item sm={12} md={12} lg={10} xl={10}>
-            <Paper style={{height: '100%'}}>
-              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Warp</Typography>
-              <Divider />
-              <Box style={{padding: '0.5rem'}}>
-                <FormRow>
-                  <FormRowItem>
-                    <FormInputText type="number" type="number" label="EPI/Reed" name='warp_reed' value={formData.warp_reed}
-                      errorMsg={formDataErr.warp_reed} onChange={onWarpTextChange} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Width/Panna" name='warp_panna' value={formData.warp_panna}
-                      errorMsg={formDataErr.warp_panna} onChange={onWarpTextChange} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Extra Reed Space" name='warp_reed_space' value={formData.warp_reed_space}
-                      errorMsg={formDataErr.warp_reed_space} onChange={onWarpTextChange} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Cut Mark/Lassa" name='warp_lassa' value={formData.warp_lassa}
-                      errorMsg={formDataErr.warp_lassa} onChange={onWarpTextChange} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Cut Length/L to L" name='warp_ltol' value={formData.warp_ltol}
-                      errorMsg={formDataErr.warp_ltol} onChange={onWarpTextChange} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Cramp(%)" name='warp_cramp' value={formData.warp_cramp}
-                      errorMsg={formDataErr.warp_cramp} onChange={onWarpTextChange} readOnly/>
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Total ends" name='warp_total_ends' value={formData.warp_total_ends}
-                      readOnly />
-                  </FormRowItem>
-                </FormRow>
-              </Box>
-              <DataGrid columns={warpCols} data={formData.warps || []} showFooter={true} tdClassName={classes.inputGridTd} />
-              <Button variant="outlined" color="primary" onClick={()=>{
-                formDispatch({
-                  type: 'add_grid_row',
-                  path: 'warps',
-                  value: getDefaultRow(warpCols),
-                  postReducer: 'warp',
-                });
-              }}>Add warp</Button>
-              <Divider style={{marginTop: '0.5rem'}} />
-              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Weft</Typography>
-              <Divider />
-              <Box style={{padding: '0.5rem'}}>
-                <FormRow>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Meter" name='weft_meter' value={formData.weft_meter}
-                      errorMsg={formDataErr.weft_meter} readOnly/>
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Width/Panna(Inch)" name='weft_panna' value={formData.weft_panna}
-                      errorMsg={formDataErr.panna} onChange={onWeftTextChange} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Exta Reed Space(Inch)" name='weft_reed_space' value={formData.weft_reed_space}
-                      errorMsg={formDataErr.reed_space} onChange={onWeftTextChange} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="PPI(Pick)" name='weft_pick' value={formData.weft_pick}
-                      errorMsg={formDataErr.weft_pick} onChange={onWeftTextChange} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Job Rate(paise)" name='weft_job_rate' value={formData.weft_job_rate}
-                      errorMsg={formDataErr.weft_job_rate} onChange={onWeftTextChange} />
-                  </FormRowItem>
-                  <FormRowItem>
-                    <FormInputText type="number" label="Weaving charges" name='weaving_charges' value={formData.weaving_charges}
-                      readOnly />
-                  </FormRowItem>
-                </FormRow>
-              </Box>
-              <DataGrid columns={weftCols} data={formData.wefts || []} showFooter={true} tdClassName={classes.inputGridTd} />
-              <Button variant="outlined" color="primary" onClick={()=>{
-                formDispatch({
-                  type: 'add_grid_row',
-                  path: 'wefts',
-                  value: getDefaultRow(weftCols),
-                  postReducer: 'weft',
-                });
-              }}>Add weft</Button>
-            </Paper>
-          </Grid>
-          <Grid item sm={12} md={12} lg={2} xl={2}>
-            <Paper style={{height: '100%'}}>
-              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Summary(Kg)</Typography>
-              <Divider />
-              <Box style={{padding: '0.5rem'}}>
-                <FormInputText type="number" label="Warp weight" name='warp_weight' value={formData.warp_weight} readOnly />
-                <Box style={{marginTop: '0.5rem'}}>
-                  <FormInputText type="number" label="Weft weight" name='weft_weight'
-                    value={formData.weft_weight} readOnly />
-                </Box>
-                <Box style={{marginTop: '0.5rem'}}>
-                  <FormInputText type="number" label="Total weight" name='total_weight'
-                    value={formData.total_weight} readOnly highlight/>
-                </Box>
-                <Box style={{marginTop: '0.5rem'}}>
-                  <FormInputText type="number" label="Warp weight w/wastage" name='warp_weight_wastage'
-                    value={formData.warp_weight_wastage} readOnly />
-                </Box>
-                <Box style={{marginTop: '0.5rem'}}>
-                  <FormInputText type="number" label="Weft weight w/wastage" name='weft_weight_wastage'
-                    value={formData.weft_weight_wastage} readOnly />
-                </Box>
-                <Box style={{marginTop: '0.5rem'}}>
-                  <FormInputText type="number" label="Total weight w/wastage" name='total_weight_wastage'
-                    value={formData.total_weight_wastage} readOnly highlight/>
-                </Box>
-              </Box>
-            </Paper>
-          </Grid>
-        </Grid>
-        <Paper style={{marginTop: '0.5rem'}}>
-          <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Cost breakup</Typography>
-          <Divider />
-          <Box style={{padding: '0.5rem'}}>
-            <Grid container spacing={1}>
-              <Grid item md={4} sm={12} xs={12}>
-                <TableLayout>
-                  <TableLayoutRow>
-                    <TableLayoutCell colspan={4} className={classes.borderBottom} style={{textAlign: 'center'}}>
-                      <Typography color="secondary">Gray Fabric</Typography>
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell></TableLayoutCell>
-                    <TableLayoutCell></TableLayoutCell>
-                    <TableLayoutCell>
-                      <Box>
-                      Production cost
-                      <FormInfo>
-                        <Box p={1}>
-                          <TableLayout>
-                            {formData.breakups?.prod_cost && Object.keys(formData.breakups.prod_cost).map((b)=>{
-                              return (
-                                <TableLayoutRow>
-                                  <TableLayoutCell>{b}</TableLayoutCell>
-                                  <TableLayoutCell>{formData.breakups.prod_cost[b]}</TableLayoutCell>
-                                </TableLayoutRow>
-                              )
-                            })}
-                          </TableLayout>
-                        </Box>
-                      </FormInfo>
-                      </Box>
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
-                    <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
-                    <TableLayoutCell className={classes.borderBottom}>
-                      <FormInputText type="number" name='prod_cost' value={formData.prod_cost}
-                         readOnly />
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell>Gray market price</TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='gray_market_price' value={formData.gray_market_price}
-                        onChange={onRateChange} />
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='gray_market_price' value={formData.gray_market_price} readOnly />
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell>Brokerage(%)</TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='gray_brokerage' value={formData.gray_brokerage}
-                        onChange={onRateChange} />
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='gray_brokerage_calc' value={formData.gray_brokerage_calc} readOnly />
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell>Interest(%)</TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='gray_interest' value={formData.gray_interest}
-                        onChange={onRateChange} />
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='gray_interest_calc' value={formData.gray_interest_calc} readOnly />
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell>Cash discount(%)</TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='gray_cashdisc' value={formData.gray_cashdisc}
-                        onChange={onRateChange} />
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='gray_cashdisc_calc' value={formData.gray_cashdisc_calc} readOnly />
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell>Others(%)</TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='gray_others' value={formData.gray_others}
-                        onChange={onRateChange} />
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='gray_others_calc' value={formData.gray_others_calc} readOnly />
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell className={classes.borderTop}></TableLayoutCell>
-                    <TableLayoutCell className={clsx(classes.borderTop, classes.alignRight)}>Total</TableLayoutCell>
-                    <TableLayoutCell className={classes.borderTop}>
-                      <FormInputText type="number" name='gray_total' value={formData.gray_total} readOnly highlight/>
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell></TableLayoutCell>
-                    <TableLayoutCell className={classes.alignRight}>Profit(%)</TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='gray_profit' value={formData.gray_profit} readOnly profit/>
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell></TableLayoutCell>
-                    <TableLayoutCell className={classes.alignRight}>Reverse Job Rate(Paise)</TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='gray_revjobrate' value={formData.gray_revjobrate} readOnly highlight/>
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                </TableLayout>
-              </Grid>
-              <Grid item md={1} sm={12} xs={12}></Grid>
-              <Grid item md={7} sm={12} xs={12}>
-                <TableLayout>
-                  <TableLayoutRow>
-                    <TableLayoutCell colspan={4} className={classes.borderBottom} style={{textAlign: 'center'}}>
-                      <Typography color="secondary">Finish Fabric</Typography>
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell></TableLayoutCell>
-                    <TableLayoutCell></TableLayoutCell>
-                    <TableLayoutCell>Production cost</TableLayoutCell>
-                    <TableLayoutCell>Gray market price</TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
-                    <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
-                    <TableLayoutCell className={classes.borderBottom}>
-                      <FormInputText type="number" name='prod_cost' value={formData.prod_cost}
-                        readOnly/>
-                    </TableLayoutCell>
-                    <TableLayoutCell className={classes.borderBottom}>
-                      <FormInputText type="number" name='fin_gray_price' value={formData.fin_gray_price}
-                        onChange={onRateChange} />
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell>Process Charge(Rs.)</TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_process_charge' value={formData.fin_process_charge}
-                        onChange={onRateChange} />
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_process_charge' value={formData.fin_process_charge} readOnly/>
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_process_charge' value={formData.fin_process_charge} readOnly/>
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell>
-                      <FormInputSelect name='fin_elongshrink_opt' value={formData.fin_elongshrink_opt} options={[
-                        {label:'Elongation %', value: 'elongation'},
-                        {label:'Shrinkage %', value: 'shrinkage'},
-                      ]} onChange={onRateChange} />
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_elongshrink' value={formData.fin_elongshrink}
-                        onChange={onRateChange} fullWidth />
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_prod_elongshrink' value={formData.fin_prod_elongshrink} readOnly/>
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_gray_elongshrink' value={formData.fin_gray_elongshrink} readOnly/>
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell>Wastage(%)</TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_wastage' value={formData.fin_wastage}
-                        onChange={onRateChange} fullWidth />
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_prod_wastage' value={formData.fin_prod_wastage}
-                        readOnly/>
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_gray_wastage' value={formData.fin_gray_wastage}
-                        readOnly/>
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell>Packing Charges(paise)</TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_packing' value={formData.fin_packing}
-                        onChange={onRateChange} fullWidth />
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_packing' value={formData.fin_packing}
-                        readOnly/>
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_packing' value={formData.fin_packing}
-                        readOnly/>
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell>Others(paise)</TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_others' value={formData.fin_others}
-                        onChange={onRateChange} fullWidth />
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_others' value={formData.fin_others} readOnly/>
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_others' value={formData.fin_others} readOnly/>
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell className={classes.borderTop}></TableLayoutCell>
-                    <TableLayoutCell className={clsx(classes.borderTop, classes.alignRight)}>Total</TableLayoutCell>
-                    <TableLayoutCell className={classes.borderTop}>
-                      <FormInputText type="number" name='fin_prod_total' value={formData.fin_prod_total}
-                        readOnly highlight />
-                    </TableLayoutCell>
-                    <TableLayoutCell className={classes.borderTop}>
-                      <FormInputText type="number" name='fin_gray_total' value={formData.fin_gray_total}
-                        readOnly highlight/>
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell></TableLayoutCell>
-                    <TableLayoutCell></TableLayoutCell>
-                    <TableLayoutCell>Profit(%)</TableLayoutCell>
-                    <TableLayoutCell>Profit(%)</TableLayoutCell>
-                  </TableLayoutRow>
-                  <TableLayoutRow>
-                    <TableLayoutCell style={{verticaAlign: 'bottom'}}>Finish Fabric Market Price</TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_market_price' value={formData.fin_market_price}
-                        onChange={onRateChange} fullWidth />
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_prod_profit' value={formData.fin_prod_profit}
-                        readOnly profit/>
-                    </TableLayoutCell>
-                    <TableLayoutCell>
-                      <FormInputText type="number" name='fin_gray_profit' value={formData.fin_gray_profit}
-                        readOnly profit/>
-                    </TableLayoutCell>
-                  </TableLayoutRow>
-                </TableLayout>
-              </Grid>
-
-            </Grid>
+        <Box display="flex" flexDirection="column" height="100%" style={{minHeight: 0}}>
+          <Box>
+            <Tabs value={tabvalue} onChange={tabChange} aria-label="simple tabs example">
+              <Tab label="Costing" />
+              <Tab label="Packing" />
+            </Tabs>
           </Box>
-        </Paper>
-        <Box display="none">
-          <PrintPage formData={formData} printRef={reportRef} warpCols={warpCols} weftCols={weftCols}/>
+          <TabPanel value={tabvalue} index={0}>
+            <Grid container spacing={1}>
+              <Grid item sm={12} md={12} lg={10} xl={10}>
+                <Paper style={{height: '100%'}}>
+                  <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Warp</Typography>
+                  <Divider />
+                  <Box style={{padding: '0.5rem'}}>
+                    <FormRow>
+                      <FormRowItem>
+                        <FormInputText type="number" type="number" label="EPI/Reed" name='warp_reed' value={formData.warp_reed}
+                          errorMsg={formDataErr.warp_reed} onChange={onWarpTextChange} />
+                      </FormRowItem>
+                      <FormRowItem>
+                        <FormInputText type="number" label="Width/Panna" name='warp_panna' value={formData.warp_panna}
+                          errorMsg={formDataErr.warp_panna} onChange={onWarpTextChange} />
+                      </FormRowItem>
+                      <FormRowItem>
+                        <FormInputText type="number" label="Extra Reed Space" name='warp_reed_space' value={formData.warp_reed_space}
+                          errorMsg={formDataErr.warp_reed_space} onChange={onWarpTextChange} />
+                      </FormRowItem>
+                      <FormRowItem>
+                        <FormInputText type="number" label={`Cut Mark/Lassa (${(_.find(LASSA_UNIT_OPTIONS, (o)=>o.value==settings.lassa_unit)||{label: ''}).label})`} name='warp_lassa' value={formData.warp_lassa}
+                          errorMsg={formDataErr.warp_lassa} onChange={onWarpTextChange} />
+                      </FormRowItem>
+                      <FormRowItem>
+                        <FormInputText type="number" label="Cut Length/L to L" name='warp_ltol' value={formData.warp_ltol}
+                          errorMsg={formDataErr.warp_ltol} onChange={onWarpTextChange} />
+                      </FormRowItem>
+                      <FormRowItem>
+                        <FormInputText type="number" label="Cramp(%)" name='warp_cramp' value={formData.warp_cramp}
+                          errorMsg={formDataErr.warp_cramp} onChange={onWarpTextChange} readOnly/>
+                      </FormRowItem>
+                      <FormRowItem>
+                        <FormInputText type="number" label="Total ends" name='warp_total_ends' value={formData.warp_total_ends}
+                          readOnly />
+                      </FormRowItem>
+                    </FormRow>
+                  </Box>
+                  <DataGrid columns={warpCols} data={formData.warps || []} showFooter={true} tdClassName={classes.inputGridTd} />
+                  <Button variant="outlined" color="primary" onClick={()=>{
+                    formDispatch({
+                      type: 'add_grid_row',
+                      path: 'warps',
+                      value: getDefaultRow(warpCols),
+                      postReducer: 'warp',
+                    });
+                  }}>Add warp</Button>
+                  <Divider style={{marginTop: '0.5rem'}} />
+                  <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Weft</Typography>
+                  <Divider />
+                  <Box style={{padding: '0.5rem'}}>
+                    <FormRow>
+                      <FormRowItem>
+                        <FormInputText type="number" label="Meter" name='weft_meter' value={formData.weft_meter}
+                          errorMsg={formDataErr.weft_meter} readOnly/>
+                      </FormRowItem>
+                      <FormRowItem>
+                        <FormInputText type="number" label="Width/Panna(Inch)" name='weft_panna' value={formData.weft_panna}
+                          errorMsg={formDataErr.panna} onChange={onWeftTextChange} />
+                      </FormRowItem>
+                      <FormRowItem>
+                        <FormInputText type="number" label="Exta Reed Space(Inch)" name='weft_reed_space' value={formData.weft_reed_space}
+                          errorMsg={formDataErr.reed_space} onChange={onWeftTextChange} />
+                      </FormRowItem>
+                      <FormRowItem>
+                        <FormInputText type="number" label="PPI(Pick)" name='weft_pick' value={formData.weft_pick}
+                          errorMsg={formDataErr.weft_pick} onChange={onWeftTextChange} />
+                      </FormRowItem>
+                      <FormRowItem>
+                        <FormInputText type="number" label="Job Rate(paise)" name='weft_job_rate' value={formData.weft_job_rate}
+                          errorMsg={formDataErr.weft_job_rate} onChange={onWeftTextChange} />
+                      </FormRowItem>
+                      <FormRowItem>
+                        <FormInputText type="number" label="Weaving charges" name='weaving_charges' value={formData.weaving_charges}
+                          readOnly />
+                      </FormRowItem>
+                    </FormRow>
+                  </Box>
+                  <DataGrid columns={weftCols} data={formData.wefts || []} showFooter={true} tdClassName={classes.inputGridTd} />
+                  <Button variant="outlined" color="primary" onClick={()=>{
+                    formDispatch({
+                      type: 'add_grid_row',
+                      path: 'wefts',
+                      value: getDefaultRow(weftCols),
+                      postReducer: 'weft',
+                    });
+                  }}>Add weft</Button>
+                </Paper>
+              </Grid>
+              <Grid item sm={12} md={12} lg={2} xl={2}>
+                <Paper style={{height: '100%'}}>
+                  <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Summary(Kg)</Typography>
+                  <Divider />
+                  <Box style={{padding: '0.5rem'}}>
+                    <FormInputText type="number" label="Warp weight" name='warp_weight' value={formData.warp_weight} readOnly />
+                    <Box style={{marginTop: '0.5rem'}}>
+                      <FormInputText type="number" label="Weft weight" name='weft_weight'
+                        value={formData.weft_weight} readOnly />
+                    </Box>
+                    <Box style={{marginTop: '0.5rem'}}>
+                      <FormInputText type="number" label="Total weight" name='total_weight'
+                        value={formData.total_weight} readOnly highlight/>
+                    </Box>
+                    <Box style={{marginTop: '0.5rem'}}>
+                      <FormInputText type="number" label="Warp weight w/wastage" name='warp_weight_wastage'
+                        value={formData.warp_weight_wastage} readOnly />
+                    </Box>
+                    <Box style={{marginTop: '0.5rem'}}>
+                      <FormInputText type="number" label="Weft weight w/wastage" name='weft_weight_wastage'
+                        value={formData.weft_weight_wastage} readOnly />
+                    </Box>
+                    <Box style={{marginTop: '0.5rem'}}>
+                      <FormInputText type="number" label="Total weight w/wastage" name='total_weight_wastage'
+                        value={formData.total_weight_wastage} readOnly highlight/>
+                    </Box>
+                  </Box>
+                </Paper>
+              </Grid>
+            </Grid>
+            <Paper style={{marginTop: '0.5rem'}}>
+              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Cost breakup</Typography>
+              <Divider />
+              <Box style={{padding: '0.5rem'}}>
+                <Grid container spacing={1}>
+                  <Grid item md={4} sm={12} xs={12}>
+                    <TableLayout>
+                      <TableLayoutRow>
+                        <TableLayoutCell colspan={4} className={classes.borderBottom} style={{textAlign: 'center'}}>
+                          <Typography color="secondary">Gray Fabric</Typography>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell></TableLayoutCell>
+                        <TableLayoutCell></TableLayoutCell>
+                        <TableLayoutCell>
+                          <Box>
+                          Production cost
+                          <FormInfo>
+                            <Box p={1}>
+                              <TableLayout>
+                                {formData.breakups?.prod_cost && Object.keys(formData.breakups.prod_cost).map((b)=>{
+                                  return (
+                                    <TableLayoutRow>
+                                      <TableLayoutCell>{b}</TableLayoutCell>
+                                      <TableLayoutCell>{formData.breakups.prod_cost[b]}</TableLayoutCell>
+                                    </TableLayoutRow>
+                                  )
+                                })}
+                              </TableLayout>
+                            </Box>
+                          </FormInfo>
+                          </Box>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
+                        <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
+                        <TableLayoutCell className={classes.borderBottom}>
+                          <FormInputText type="number" name='prod_cost' value={formData.prod_cost}
+                            readOnly />
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Gray market price</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_market_price' value={formData.gray_market_price}
+                            onChange={onRateChange} />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_market_price' value={formData.gray_market_price} readOnly />
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Brokerage(%)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_brokerage' value={formData.gray_brokerage}
+                            onChange={onRateChange} />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_brokerage_calc' value={formData.gray_brokerage_calc} readOnly />
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Interest(%)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_interest' value={formData.gray_interest}
+                            onChange={onRateChange} />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_interest_calc' value={formData.gray_interest_calc} readOnly />
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Cash discount(%)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_cashdisc' value={formData.gray_cashdisc}
+                            onChange={onRateChange} />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_cashdisc_calc' value={formData.gray_cashdisc_calc} readOnly />
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Others(%)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_others' value={formData.gray_others}
+                            onChange={onRateChange} />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_others_calc' value={formData.gray_others_calc} readOnly />
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell className={classes.borderTop}></TableLayoutCell>
+                        <TableLayoutCell className={clsx(classes.borderTop, classes.alignRight)}>Total</TableLayoutCell>
+                        <TableLayoutCell className={classes.borderTop}>
+                          <FormInputText type="number" name='gray_total' value={formData.gray_total} readOnly highlight/>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell></TableLayoutCell>
+                        <TableLayoutCell className={classes.alignRight}>Profit(%)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_profit' value={formData.gray_profit} readOnly profit/>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell></TableLayoutCell>
+                        <TableLayoutCell className={classes.alignRight}>Reverse Job Rate(Paise)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_revjobrate' value={formData.gray_revjobrate} readOnly highlight/>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                    </TableLayout>
+                  </Grid>
+                  <Grid item md={1} sm={12} xs={12}></Grid>
+                  <Grid item md={7} sm={12} xs={12}>
+                    <TableLayout>
+                      <TableLayoutRow>
+                        <TableLayoutCell colspan={4} className={classes.borderBottom} style={{textAlign: 'center'}}>
+                          <Typography color="secondary">Finish Fabric</Typography>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell></TableLayoutCell>
+                        <TableLayoutCell></TableLayoutCell>
+                        <TableLayoutCell>Production cost</TableLayoutCell>
+                        <TableLayoutCell>Gray market price</TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
+                        <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
+                        <TableLayoutCell className={classes.borderBottom}>
+                          <FormInputText type="number" name='prod_cost' value={formData.prod_cost}
+                            readOnly/>
+                        </TableLayoutCell>
+                        <TableLayoutCell className={classes.borderBottom}>
+                          <FormInputText type="number" name='fin_gray_price' value={formData.fin_gray_price}
+                            onChange={onRateChange} />
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Process Charge(Rs.)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_process_charge' value={formData.fin_process_charge}
+                            onChange={onRateChange} />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_process_charge' value={formData.fin_process_charge} readOnly/>
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_process_charge' value={formData.fin_process_charge} readOnly/>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>
+                          <FormInputSelect name='fin_elongshrink_opt' value={formData.fin_elongshrink_opt} options={[
+                            {label:'Elongation %', value: 'elongation'},
+                            {label:'Shrinkage %', value: 'shrinkage'},
+                          ]} onChange={onRateChange} />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_elongshrink' value={formData.fin_elongshrink}
+                            onChange={onRateChange} fullWidth />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_prod_elongshrink' value={formData.fin_prod_elongshrink} readOnly/>
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_gray_elongshrink' value={formData.fin_gray_elongshrink} readOnly/>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Wastage(%)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_wastage' value={formData.fin_wastage}
+                            onChange={onRateChange} fullWidth />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_prod_wastage' value={formData.fin_prod_wastage}
+                            readOnly/>
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_gray_wastage' value={formData.fin_gray_wastage}
+                            readOnly/>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Packing Charges(paise)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_packing' value={formData.fin_packing}
+                            onChange={onRateChange} fullWidth />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_packing' value={formData.fin_packing}
+                            readOnly/>
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_packing' value={formData.fin_packing}
+                            readOnly/>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Others(paise)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_others' value={formData.fin_others}
+                            onChange={onRateChange} fullWidth />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_others' value={formData.fin_others} readOnly/>
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_others' value={formData.fin_others} readOnly/>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell className={classes.borderTop}></TableLayoutCell>
+                        <TableLayoutCell className={clsx(classes.borderTop, classes.alignRight)}>Total</TableLayoutCell>
+                        <TableLayoutCell className={classes.borderTop}>
+                          <FormInputText type="number" name='fin_prod_total' value={formData.fin_prod_total}
+                            readOnly highlight />
+                        </TableLayoutCell>
+                        <TableLayoutCell className={classes.borderTop}>
+                          <FormInputText type="number" name='fin_gray_total' value={formData.fin_gray_total}
+                            readOnly highlight/>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell></TableLayoutCell>
+                        <TableLayoutCell></TableLayoutCell>
+                        <TableLayoutCell>Profit(%)</TableLayoutCell>
+                        <TableLayoutCell>Profit(%)</TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell style={{verticaAlign: 'bottom'}}>Finish Fabric Market Price</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_market_price' value={formData.fin_market_price}
+                            onChange={onRateChange} fullWidth />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_prod_profit' value={formData.fin_prod_profit}
+                            readOnly profit/>
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='fin_gray_profit' value={formData.fin_gray_profit}
+                            readOnly profit/>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                    </TableLayout>
+                  </Grid>
+
+                </Grid>
+              </Box>
+            </Paper>
+            <Box display="none">
+              <PrintPage formData={formData} printRef={reportRef} warpCols={warpCols} weftCols={weftCols}/>
+            </Box>
+          </TabPanel>
+          <TabPanel value={tabvalue} index={1}>
+            Coming soon
+          </TabPanel>
         </Box>
+
       </DialogContent>
       <DialogActions style={{justifyContent: 'flex-start'}}>
         <Button variant="contained" onClick={()=>{
@@ -931,7 +982,7 @@ function PrintPage({printRef, formData, warpCols, weftCols}) {
               <PrintField label="Reed Name" value={formData.warp_reed} />
               <PrintField margin label="Panna" value={formData.warp_panna} />
               <PrintField margin label="Reed space" value={formData.warp_reed_space} />
-              <PrintField margin label="Lassa(Meters)" value={formData.warp_lassa} />
+              <PrintField margin label="Lassa" value={formData.warp_lassa} />
               <PrintField margin label="L to L" value={formData.warp_ltol} />
               <PrintField margin label="Total ends" value={formData.warp_total_ends} />
             </Box>

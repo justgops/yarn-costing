@@ -1,10 +1,10 @@
-import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Card, Divider, IconButton, Link, makeStyles, Modal, OutlinedInput, Paper, Typography, useTheme } from '@material-ui/core';
+import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Card, Divider, FormControl, FormControlLabel, IconButton, Link, makeStyles, Modal, OutlinedInput, Paper, Radio, RadioGroup, Typography, useTheme } from '@material-ui/core';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { connect } from 'react-redux';
 import { NOTIFICATION_TYPE, setNotification } from './store/reducers/notification';
 import { BASE_URL, getApi } from './api';
 import _ from 'lodash';
-import { FormInputText, FormRow, FormRowItem } from './components/FormElements';
+import { FormInputRadio, FormInputSelect, FormInputText, FormRow, FormRowItem } from './components/FormElements';
 import { getSettings, setSettings } from './store/reducers/settings';
 
 const useStyles = makeStyles((theme)=>({
@@ -21,6 +21,12 @@ const useStyles = makeStyles((theme)=>({
     flexGrow: 1,
   }
 }));
+
+export const LASSA_UNIT_OPTIONS = [
+  {label:'Yard', value: 'yard', figure: 1852},
+  {label:'Meter', value: 'meter', figure: 1693.33},
+];
+
 
 function getAxiosErr(err) {
   let message = '';
@@ -88,12 +94,21 @@ function Settings(props) {
           <Box p={1}>
             <FormRow>
               <FormRowItem>
-                <FormInputText autoFocus label="Length per count" name='length_per_count' value={formData.length_per_count}
-                  onChange={onTextChange} type="number"
-                  />
+                <FormInputSelect label="Warp Cut Mark/Lassa Unit" name='lassa_unit'
+                  value={formData.lassa_unit} options={LASSA_UNIT_OPTIONS} onChange={onTextChange} />
               </FormRowItem>
-              <FormRowItem></FormRowItem>
-              <FormRowItem></FormRowItem>
+              <FormRowItem>
+                <FormInputText type="number" label="Warp Rate GST(%)" name='warp_rate_gst' value={formData.warp_rate_gst}
+                  onChange={onTextChange} />
+              </FormRowItem>
+              <FormRowItem>
+                <FormInputText type="number" label="Warp Sizing Rate GST(%)" name='sizing_rate_gst' value={formData.sizing_rate_gst}
+                  onChange={onTextChange} />
+              </FormRowItem>
+              <FormRowItem>
+                <FormInputText type="number" label="Weft Rate GST(%)" name='weft_rate_gst' value={formData.weft_rate_gst}
+                  onChange={onTextChange} />
+              </FormRowItem>
               <FormRowItem></FormRowItem>
             </FormRow>
           </Box>

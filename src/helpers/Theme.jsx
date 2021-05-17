@@ -18,6 +18,9 @@ const globalTheme = createMuiTheme({
     },
     typography: {
         fontSize: 14,
+        body1: {
+            fontSize: 14,
+        }
     }
 });
 
@@ -97,7 +100,7 @@ export const theme = createMuiTheme({
         },
         MuiOutlinedInput: {
             input: {
-                padding: defaultTheme.spacing(1, 1.5),
+                padding: defaultTheme.spacing(0.75, 1),
                 '&[readonly]':{
                     backgroundColor: defaultTheme.palette.grey[200],
                     opacity: 0.75
@@ -125,8 +128,18 @@ export const theme = createMuiTheme({
             dividers: {
                 padding: defaultTheme.spacing(1, 0.5),
             }
+        },
+        MuiFormControlLabel: {
+            root: {
+                marginLeft: 0,
+            }
+        },
+        PrivateSwitchBase: {
+            root: {
+                padding: defaultTheme.spacing(0.5),
+            }
         }
-    }
+    },
 }, globalTheme);
 
 export default function Theme(props) {
