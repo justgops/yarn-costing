@@ -87,8 +87,8 @@ function getProdCostWithBreakup(state) {
 const getFormReducer = (settings)=>(state, action)=>{
   const warpWeftReducer = (state)=>{
 
-    state.total_weight = parse(state.warp_weight + state.weft_weight);
-    state.total_weight_wastage = parse(state.warp_weight_wastage + state.weft_weight_wastage);
+    state.total_weight_glm = parse(state.warp_weight + state.weft_weight);
+    state.total_weight_glm_wastage = parse(state.warp_weight_wastage + state.weft_weight_wastage);
     [state.prod_cost, state.breakups.prod_cost] = getProdCostWithBreakup(state);
     return state;
   }
@@ -548,7 +548,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
                     <FormRow>
                       <FormRowItem>
                         <FormInputText type="number" type="number" label="EPI/Reed" name='warp_reed' value={formData.warp_reed}
-                          errorMsg={formDataErr.warp_reed} onChange={onWarpTextChange} />
+                          errorMsg={formDataErr.warp_reed} onChange={onWarpTextChange} fullWidth/>
                       </FormRowItem>
                       <FormRowItem>
                         <FormInputText type="number" label="Width/Panna" name='warp_panna' value={formData.warp_panna}
@@ -565,6 +565,10 @@ function Calculator({open, onClose, onSave, data, settings}) {
                       <FormRowItem>
                         <FormInputText type="number" label="Cut Length/L to L" name='warp_ltol' value={formData.warp_ltol}
                           errorMsg={formDataErr.warp_ltol} onChange={onWarpTextChange} />
+                      </FormRowItem>
+                      <FormRowItem>
+                        <FormInputText type="number" label="Ironing/Sizing Wt. increase(%)" name='warp_iron_wt' value={formData.warp_iron_wt}
+                          errorMsg={formDataErr.warp_iron_wt} onChange={onWarpTextChange} />
                       </FormRowItem>
                       <FormRowItem>
                         <FormInputText type="number" label="Cramp(%)" name='warp_cramp' value={formData.warp_cramp}
@@ -638,8 +642,12 @@ function Calculator({open, onClose, onSave, data, settings}) {
                         value={formData.weft_weight} readOnly />
                     </Box>
                     <Box style={{marginTop: '0.5rem'}}>
-                      <FormInputText type="number" label="Total weight" name='total_weight'
-                        value={formData.total_weight} readOnly highlight/>
+                      <FormInputText type="number" label="Total weight (GLM)" name='total_weight_glm'
+                        value={formData.total_weight_glm} readOnly highlight/>
+                    </Box>
+                    <Box style={{marginTop: '0.5rem'}}>
+                      <FormInputText type="number" label="Total weight (GSM)" name='total_weight_gsm'
+                        value={formData.total_weight_gsm} readOnly highlight/>
                     </Box>
                     <Box style={{marginTop: '0.5rem'}}>
                       <FormInputText type="number" label="Warp weight w/wastage" name='warp_weight_wastage'
@@ -650,8 +658,8 @@ function Calculator({open, onClose, onSave, data, settings}) {
                         value={formData.weft_weight_wastage} readOnly />
                     </Box>
                     <Box style={{marginTop: '0.5rem'}}>
-                      <FormInputText type="number" label="Total weight w/wastage" name='total_weight_wastage'
-                        value={formData.total_weight_wastage} readOnly highlight/>
+                      <FormInputText type="number" label="Total weight w/wastage" name='total_weight_glm_wastage'
+                        value={formData.total_weight_glm_wastage} readOnly highlight/>
                     </Box>
                   </Box>
                 </Paper>

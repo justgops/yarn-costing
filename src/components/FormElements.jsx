@@ -88,7 +88,7 @@ export function FormRow({print, children}) {
 
 export function FormRowItem({children, ...props}) {
   return (
-    <Grid item {...props}>
+    <Grid item {...props} style={{display: 'flex', alignItems: 'flex-end'}}>
       {children}
     </Grid>
   );
@@ -130,7 +130,7 @@ export function FormInfo({children}) {
 
 export function FormInput({children, info, ...props}) {
   return (
-    <Box>
+    <Box width="100%">
       <Box display="flex" style={{alignItems: 'flex-end', marginBottom: '4px'}}>
         <FormLabel component={Box} required={props.required}>
           {props.label}
