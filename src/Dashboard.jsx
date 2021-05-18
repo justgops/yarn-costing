@@ -71,7 +71,7 @@ function SubMenu({item}) {
   }
 }
 
-const TRIAL_DAYS = 15;
+const TRIAL_DAYS = 30;
 
 function Dashboard({location, ...props}) {
   const classes = useStyles();
