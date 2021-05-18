@@ -16,12 +16,17 @@ import { LASSA_UNIT_OPTIONS } from '../Settings';
 const ROUND_DECIMAL = 5;
 
 function parse(num) {
-  if(!isNaN(num)) {
-    num = Math.round(num + "e" + ROUND_DECIMAL);
-    return Number(num + "e" + -ROUND_DECIMAL);
+  if(!isNaN(num) && num) {
+    return Number(num);
   } else {
     return Number(0.0);
   }
+}
+
+function round(num) {
+  num = parse(num);
+  num = Math.round(num + "e" + ROUND_DECIMAL);
+  return Number(num + "e" + -ROUND_DECIMAL);
 }
 
 const useStyles = makeStyles((theme)=>({
@@ -87,15 +92,16 @@ function getProdCostWithBreakup(state) {
 const getFormReducer = (settings)=>(state, action)=>{
   const warpWeftReducer = (state)=>{
 
-    state.total_weight_glm = parse(state.warp_weight + state.weft_weight);
-    state.total_weight_glm_wastage = parse(state.warp_weight_wastage + state.weft_weight_wastage);
+    state.total_weight_glm = round(state.warp_weight + state.weft_weight);
+    state.total_weight_glm_wastage = round(state.warp_weight_wastage + state.weft_weight_wastage);
+    state.total_weight_gsm = round((state.total_weight_glm * 39.37)/parse(state.warp_panna));
     [state.prod_cost, state.breakups.prod_cost] = getProdCostWithBreakup(state);
     return state;
   }
 
   const warpPostReducer = (state, rowsChange=false)=>{
     state.warp_total_ends =  parse(state.warp_reed) * (parse(state.warp_panna) + parse(state.warp_reed_space));
-    state.warp_cramp = parse((parse(state.warp_lassa)-parse(state.warp_ltol))/parse(state.warp_lassa)*100);
+    state.warp_cramp = round((parse(state.warp_lassa)-parse(state.warp_ltol))/parse(state.warp_lassa)*100);
     state.warp_weight = 0.0;
     state.warp_weight_wastage = 0.0;
 
@@ -110,18 +116,19 @@ const getFormReducer = (settings)=>(state, action)=>{
         parse((state.warp_total_ends * parse(state.warp_lassa)/length_per_count/parse(row.count)/parse(state.warp_ltol))
           * parse(row.perct)/100);
 
-      row.weight_wastage = parse(weight + (parse(row.wastage) * weight)/100);
+      row.weight_wastage = round(weight + (parse(row.wastage) * weight)/100);
       state.warp_weight += weight;
       state.warp_weight_wastage += row.weight_wastage;
 
       let rate = row.rate - (row.rate_wgst ? row.rate*settings.warp_rate_gst/100 : 0);
       let sizing_rate = row.sizing_rate - (row.sizing_rate_wgst ? row.rate*settings.sizing_rate_gst/100 : 0);
-      row.cost = parse(row.weight_wastage * parse(rate));
-      row.sizing_cost = parse(row.weight_wastage * parse(sizing_rate));
+      row.cost = round(row.weight_wastage * parse(rate));
+      row.sizing_cost = round(row.weight_wastage * parse(sizing_rate));
     }
 
-    state.warp_weight = parse(state.warp_weight);
-    state.warp_weight_wastage = parse(state.warp_weight_wastage);
+    state.warp_weight += state.warp_weight*parse(state.warp_iron_wt)/100;
+    state.warp_weight = round(state.warp_weight);
+    state.warp_weight_wastage = round(state.warp_weight_wastage);
 
     return state;
   }
@@ -141,27 +148,28 @@ const getFormReducer = (settings)=>(state, action)=>{
         parse((parse(state.weft_meter) * (parse(state.weft_panna) + parse(state.weft_reed_space)) * parse(state.weft_pick)/(1693.33*row.count))
           *parse(row.perct)/100);
 
-      row.weight_wastage = parse(weight + (parse(row.wastage) * weight)/100);
+      row.weight_wastage = round(weight + (parse(row.wastage) * weight)/100);
       state.weft_weight += weight;
       state.weft_weight_wastage += row.weight_wastage;
 
       let rate = row.rate - (row.rate_wgst ? row.rate*settings.weft_rate_gst/100 : 0);
-      row.cost = parse(row.weight_wastage * parse(rate));
+      row.cost = round(row.weight_wastage * parse(rate));
     }
-
+    state.weft_weight = round(state.weft_weight);
+    state.weft_weight_wastage = round(state.weft_weight_wastage);
     return state;
   }
 
   const rateReducer = (state)=>{
     /* Gray fabric */
-    state.gray_brokerage_calc = parse(parse(state.gray_market_price)*parse(state.gray_brokerage)/100);
-    state.gray_interest_calc = parse(state.prod_cost*parse(state.gray_interest)/100);
-    state.gray_cashdisc_calc = parse(parse(state.gray_market_price)*parse(state.gray_cashdisc)/100);
-    state.gray_others_calc = parse(state.prod_cost*parse(state.gray_others)/100);
-    state.gray_total = parse(state.prod_cost + state.gray_brokerage_calc + state.gray_interest_calc
+    state.gray_brokerage_calc = round(parse(state.gray_market_price)*parse(state.gray_brokerage)/100);
+    state.gray_interest_calc = round(state.prod_cost*parse(state.gray_interest)/100);
+    state.gray_cashdisc_calc = round(parse(state.gray_market_price)*parse(state.gray_cashdisc)/100);
+    state.gray_others_calc = round(state.prod_cost*parse(state.gray_others)/100);
+    state.gray_total = round(state.prod_cost + state.gray_brokerage_calc + state.gray_interest_calc
       + state.gray_cashdisc_calc + state.gray_others_calc);
 
-    state.gray_profit =  parse((parse(state.gray_market_price)/state.gray_total-1)*100);
+    state.gray_profit =  round((parse(state.gray_market_price)/state.gray_total-1)*100);
     let totalWarpCost = 0;
     let totalWarpSizCost = 0;
     let totalWeftCost = 0;
@@ -172,26 +180,26 @@ const getFormReducer = (settings)=>(state, action)=>{
     for(let row of state['wefts'] || []) {
       state.totalWeftCost  += row.cost;
     }
-    state.gray_revjobrate = parse((parse(state.gray_market_price)-state.gray_brokerage_calc-state.gray_interest_calc
+    state.gray_revjobrate = round((parse(state.gray_market_price)-state.gray_brokerage_calc-state.gray_interest_calc
       -state.gray_cashdisc_calc-state.gray_others_calc-totalWarpCost-totalWarpSizCost-totalWeftCost)/state.weft_pick);
 
     /* Finish fabric */
-    state.fin_prod_elongshrink = parse(state.prod_cost*parse(state.fin_elongshrink)/100);
-    state.fin_gray_elongshrink = parse(parse(state.fin_gray_price)*parse(state.fin_elongshrink)/100);
+    state.fin_prod_elongshrink = round(state.prod_cost*parse(state.fin_elongshrink)/100);
+    state.fin_gray_elongshrink = round(parse(state.fin_gray_price)*parse(state.fin_elongshrink)/100);
 
-    state.fin_prod_wastage = parse((state.prod_cost+parse(state.fin_process_charge)+state.fin_prod_elongshrink)
+    state.fin_prod_wastage = round((state.prod_cost+parse(state.fin_process_charge)+state.fin_prod_elongshrink)
       *parse(state.fin_wastage)/100);
-    state.fin_gray_wastage = parse((parse(state.fin_gray_price)+parse(state.fin_process_charge)+state.fin_gray_elongshrink)
+    state.fin_gray_wastage = round((parse(state.fin_gray_price)+parse(state.fin_process_charge)+state.fin_gray_elongshrink)
       *parse(state.fin_wastage)/100);
 
     let elongshrink = state.fin_elongshrink_opt === 'elongation' ? -1 : 1;
-    state.fin_prod_total = parse(state.prod_cost+parse(state.fin_process_charge)+elongshrink*state.fin_prod_elongshrink
+    state.fin_prod_total = round(state.prod_cost+parse(state.fin_process_charge)+elongshrink*state.fin_prod_elongshrink
       +state.fin_prod_wastage+parse(state.fin_packing)+parse(state.fin_others));
-    state.fin_gray_total = parse(parse(state.fin_gray_price)+parse(state.fin_process_charge)+elongshrink*state.fin_gray_elongshrink
+    state.fin_gray_total = round(parse(state.fin_gray_price)+parse(state.fin_process_charge)+elongshrink*state.fin_gray_elongshrink
       +state.fin_gray_wastage+parse(state.fin_packing)+parse(state.fin_others));
 
-    state.fin_prod_profit = parse((parse(state.fin_market_price)-state.fin_prod_total)/state.fin_prod_total*100);
-    state.fin_gray_profit = parse((parse(state.fin_market_price)-state.fin_gray_total)/state.fin_gray_total*100);
+    state.fin_prod_profit = round((parse(state.fin_market_price)-state.fin_prod_total)/state.fin_prod_total*100);
+    state.fin_gray_profit = round((parse(state.fin_market_price)-state.fin_gray_total)/state.fin_gray_total*100);
     return state;
   }
 
@@ -542,7 +550,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
             <Grid container spacing={1}>
               <Grid item sm={12} md={12} lg={10} xl={10}>
                 <Paper style={{height: '100%'}}>
-                  <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Warp</Typography>
+                  <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.25rem'}}>Warp</Typography>
                   <Divider />
                   <Box style={{padding: '0.5rem'}}>
                     <FormRow>
@@ -590,7 +598,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
                     });
                   }}>Add warp</Button>
                   <Divider style={{marginTop: '0.5rem'}} />
-                  <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Weft</Typography>
+                  <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.25rem'}}>Weft</Typography>
                   <Divider />
                   <Box style={{padding: '0.5rem'}}>
                     <FormRow>
@@ -633,7 +641,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
               </Grid>
               <Grid item sm={12} md={12} lg={2} xl={2}>
                 <Paper style={{height: '100%'}}>
-                  <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Summary(Kg)</Typography>
+                  <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.25rem'}}>Summary(Kg)</Typography>
                   <Divider />
                   <Box style={{padding: '0.5rem'}}>
                     <FormInputText type="number" label="Warp weight" name='warp_weight' value={formData.warp_weight} readOnly />
@@ -666,7 +674,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
               </Grid>
             </Grid>
             <Paper style={{marginTop: '0.5rem'}}>
-              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.5rem'}}>Cost breakup</Typography>
+              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.25rem'}}>Cost breakup</Typography>
               <Divider />
               <Box style={{padding: '0.5rem'}}>
                 <Grid container spacing={1}>
