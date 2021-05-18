@@ -18,6 +18,7 @@ const useStyles = makeStyles((theme)=>({
   tableCell: {
     margin: 0,
     textAlign: 'left',
+    verticalAlign: 'top',
     fontWeight: 'initial',
     padding: theme.spacing(1),
     borderRight: theme.mixins.border,

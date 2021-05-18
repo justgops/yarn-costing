@@ -86,7 +86,7 @@ function getProdCostWithBreakup(state) {
     breakup["Total weft cost"]  += row.cost;
   }
   prod_cost += breakup["Total warp cost"] + breakup["Total sizing cost"] + breakup["Total weft cost"] + breakup["Weaving charges"];
-  return [parse(prod_cost), breakup];
+  return [round(prod_cost), breakup];
 }
 
 const getFormReducer = (settings)=>(state, action)=>{
@@ -120,8 +120,11 @@ const getFormReducer = (settings)=>(state, action)=>{
       state.warp_weight += weight;
       state.warp_weight_wastage += row.weight_wastage;
 
-      let rate = row.rate - (row.rate_wgst ? row.rate*settings.warp_rate_gst/100 : 0);
-      let sizing_rate = row.sizing_rate - (row.sizing_rate_wgst ? row.rate*settings.sizing_rate_gst/100 : 0);
+      let rate = parse(row.rate)*100/
+        (100+(state.warp_rate_wgst ? parse(settings.yarn_rate_gst) : 0));
+      let sizing_rate = parse(row.sizing_rate)*100/
+        (100+(state.warp_sizing_wgst ? parse(settings.sizing_rate_gst) : 0));
+      console.log(rate, sizing_rate);
       row.cost = round(row.weight_wastage * parse(rate));
       row.sizing_cost = round(row.weight_wastage * parse(sizing_rate));
     }
@@ -152,7 +155,8 @@ const getFormReducer = (settings)=>(state, action)=>{
       state.weft_weight += weight;
       state.weft_weight_wastage += row.weight_wastage;
 
-      let rate = row.rate - (row.rate_wgst ? row.rate*settings.weft_rate_gst/100 : 0);
+      let rate = parse(row.rate)*100/
+        (100+(state.weft_rate_wgst ? parse(settings.yarn_rate_gst) : 0));
       row.cost = round(row.weight_wastage * parse(rate));
     }
     state.weft_weight = round(state.weft_weight);
@@ -309,25 +313,6 @@ function getGridCols(basePath, formDispatch, postReducer, otherCols, cellClassNa
             postReducer: postReducer,
           });
         }} />
-        {col.GST &&<FormControlLabel
-          control={
-            <Checkbox
-              color="primary"
-              size="small"
-              checked={row.values[gstKey]}
-              onChange={(e)=>{
-                let value = e.target.checked;
-                formDispatch({
-                  type: 'set_value',
-                  path: basePath.concat([row.index, gstKey]),
-                  value: value,
-                  postReducer: postReducer,
-                });
-              }}
-            />
-          }
-          label="w/GST"
-        />}
         </Box>)
       }
     });
@@ -424,12 +409,49 @@ function Calculator({open, onClose, onSave, data, settings}) {
       accessor: 'wastage',
     },
     {
-      Header: 'Rate(Per Kg)',
+      Header: ()=>{
+        return (
+        <>
+        Rate(Rs per Kg)
+        <FormControlLabel
+          control={
+            <Checkbox
+              color="primary"
+              size="small"
+              checked={formData.warp_rate_wgst}
+              onChange={(e)=>{
+                onWarpTextChange(e.target.checked, 'warp_rate_wgst')
+              }}
+            />
+          }
+          label="w/GST"
+        />
+        </>
+        )
+      },
       accessor: 'rate',
-      GST: true,
     },
     {
-      Header: 'Sizing rate(Per Kg)',
+      Header: ()=>{
+        return (
+        <>
+        Sizing rate(Rs per Kg)
+        <FormControlLabel
+          control={
+            <Checkbox
+              color="primary"
+              size="small"
+              checked={formData.warp_sizing_wgst}
+              onChange={(e)=>{
+                onWarpTextChange(e.target.checked, 'warp_sizing_wgst')
+              }}
+            />
+          }
+          label="w/GST"
+        />
+        </>
+        )
+      },
       accessor: 'sizing_rate',
       Footer: 'check;',
       GST: true,
@@ -452,7 +474,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
       readOnly: true,
       showTotal: true,
     },
-  ], classes.gridCell), []);
+  ], classes.gridCell), [formData.warp_sizing_wgst, formData.warp_rate_wgst]);
 
   const weftCols = useMemo(()=>getGridCols(['wefts'], formDispatch, 'weft',[
     {
@@ -468,9 +490,28 @@ function Calculator({open, onClose, onSave, data, settings}) {
       accessor: 'wastage',
     },
     {
-      Header: 'Rate(Rs per Kg)',
+      Header: '',
+      Header: ()=>{
+        return (
+        <>
+        Rate(Rs per Kg)
+        <FormControlLabel
+          control={
+            <Checkbox
+              color="primary"
+              size="small"
+              checked={formData.weft_rate_wgst}
+              onChange={(e)=>{
+                onWeftTextChange(e.target.checked, 'weft_rate_wgst')
+              }}
+            />
+          }
+          label="w/GST"
+        />
+        </>
+        )
+      },
       accessor: 'rate',
-      GST: true,
     },
     {
       Header: 'Weight w/wastage(Kg)',
@@ -484,7 +525,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
       readOnly: true,
       showTotal: true,
     },
-  ], classes.gridCell), []);
+  ], classes.gridCell), [formData.weft_rate_wgst]);
 
   const getDefaultRow = (cols) => {
     let row = {}

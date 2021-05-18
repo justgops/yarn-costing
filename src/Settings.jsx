@@ -98,15 +98,11 @@ function Settings(props) {
                   value={formData.lassa_unit} options={LASSA_UNIT_OPTIONS} onChange={onTextChange} />
               </FormRowItem>
               <FormRowItem>
-                <FormInputText type="number" label="Warp Rate GST(%)" name='warp_rate_gst' value={formData.warp_rate_gst}
+                <FormInputText type="number" label="Yarn Rate GST(%)" name='yarn_rate_gst' value={formData.yarn_rate_gst}
                   onChange={onTextChange} />
               </FormRowItem>
               <FormRowItem>
                 <FormInputText type="number" label="Warp Sizing Rate GST(%)" name='sizing_rate_gst' value={formData.sizing_rate_gst}
-                  onChange={onTextChange} />
-              </FormRowItem>
-              <FormRowItem>
-                <FormInputText type="number" label="Weft Rate GST(%)" name='weft_rate_gst' value={formData.weft_rate_gst}
                   onChange={onTextChange} />
               </FormRowItem>
               <FormRowItem></FormRowItem>

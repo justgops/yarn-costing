@@ -7,9 +7,8 @@ module.exports = {
       await queryInterface.bulkInsert('Settings', [{
         value: JSON.stringify({
           "lassa_unit":"meter",
-          "warp_rate_gst": 5,
+          "yarn_rate_gst": 5,
           "sizing_rate_gst": 5,
-          "weft_rate_gst": 5
         }),
         createdAt: new Date(),
         updatedAt: new Date(),
