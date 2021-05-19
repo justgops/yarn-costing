@@ -192,7 +192,7 @@ const getFormReducer = (settings)=>(state, action)=>{
     }
 
     state.gray_revjobrate = round((parse(state.gray_market_price)-state.gray_brokerage_calc-state.gray_interest_calc
-      -state.gray_cashdisc_calc-state.gray_others_calc-totalWarpCost-totalWarpSizCost-totalWeftCost)/parse(state.weft_pick));
+      -state.gray_cashdisc_calc-state.gray_others_calc-totalWarpCost-totalWarpSizCost-totalWeftCost)*100/parse(state.weft_pick));
 
     /* Finish fabric */
     state.fin_prod_elongshrink = round(state.prod_cost*parse(state.fin_elongshrink)/100);
