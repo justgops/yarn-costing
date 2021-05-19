@@ -33,17 +33,6 @@ export const theme = createMuiTheme({
         ...globalTheme.mixins,
         border: '1px solid '+globalTheme.palette.grey[300]
     },
-    transitions: {
-        duration: {
-          shortest: 50,
-          shorter: 100,
-          short: 150,
-          standard: 200,
-          complex: 175,
-          enteringScreen: 125,
-          leavingScreen: 95,
-        }
-    },
     props: {
         MuiTextField: {
             size: 'small',

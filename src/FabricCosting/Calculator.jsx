@@ -101,13 +101,13 @@ const getFormReducer = (settings)=>(state, action)=>{
 
   const warpPostReducer = (state, rowsChange=false)=>{
     let length_per_count = 1693.33;
-    let cramp_warp_lassa = parse(state.warp_lassa);
+    let warp_lassa_meter = parse(state.warp_lassa);
     if(settings.lassa_unit == 'yard') {
       length_per_count = 1852;
-      cramp_warp_lassa = cramp_warp_lassa*0.9144;
+      warp_lassa_meter = warp_lassa_meter*0.9144;
     }
     state.warp_total_ends =  parse(state.warp_reed) * (parse(state.warp_panna) + parse(state.warp_reed_space));
-    state.warp_cramp = round((parse(state.warp_lassa)-parse(state.warp_ltol))/cramp_warp_lassa*100);
+    state.warp_cramp = round((warp_lassa_meter-parse(state.warp_ltol))/warp_lassa_meter*100);
     state.warp_weight = 0.0;
     state.warp_weight_wastage = 0.0;
 
@@ -603,15 +603,15 @@ function Calculator({open, onClose, onSave, data, settings}) {
                   <Box style={{padding: '0.5rem'}}>
                     <FormRow>
                       <FormRowItem>
-                        <FormInputText type="number" type="number" label="EPI/Reed" name='warp_reed' value={formData.warp_reed}
+                        <FormInputText type="number" type="number" label="EPI/Reed(Inch)" name='warp_reed' value={formData.warp_reed}
                           errorMsg={formDataErr.warp_reed} onChange={onWarpTextChange} fullWidth/>
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Width/Panna" name='warp_panna' value={formData.warp_panna}
+                        <FormInputText type="number" label="Width/Panna(Inch)" name='warp_panna' value={formData.warp_panna}
                           errorMsg={formDataErr.warp_panna} onChange={onWarpTextChange} />
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Extra Reed Space" name='warp_reed_space' value={formData.warp_reed_space}
+                        <FormInputText type="number" label="Extra Reed Space(Inch)" name='warp_reed_space' value={formData.warp_reed_space}
                           errorMsg={formDataErr.warp_reed_space} onChange={onWarpTextChange} />
                       </FormRowItem>
                       <FormRowItem>
