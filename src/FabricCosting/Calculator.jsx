@@ -188,10 +188,11 @@ const getFormReducer = (settings)=>(state, action)=>{
       totalWarpSizCost += row.sizing_cost;
     }
     for(let row of state['wefts'] || []) {
-      state.totalWeftCost  += row.cost;
+      totalWeftCost  += row.cost;
     }
+
     state.gray_revjobrate = round((parse(state.gray_market_price)-state.gray_brokerage_calc-state.gray_interest_calc
-      -state.gray_cashdisc_calc-state.gray_others_calc-totalWarpCost-totalWarpSizCost-totalWeftCost)/state.weft_pick);
+      -state.gray_cashdisc_calc-state.gray_others_calc-totalWarpCost-totalWarpSizCost-totalWeftCost)/parse(state.weft_pick));
 
     /* Finish fabric */
     state.fin_prod_elongshrink = round(state.prod_cost*parse(state.fin_elongshrink)/100);
@@ -909,7 +910,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
                         </TableLayoutCell>
                       </TableLayoutRow>
                       <TableLayoutRow>
-                        <TableLayoutCell>Packing Charges(paise)</TableLayoutCell>
+                        <TableLayoutCell>Packing Charges(Rs)</TableLayoutCell>
                         <TableLayoutCell>
                           <FormInputText type="number" name='fin_packing' value={formData.fin_packing}
                             onChange={onRateChange} fullWidth />
@@ -924,7 +925,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
                         </TableLayoutCell>
                       </TableLayoutRow>
                       <TableLayoutRow>
-                        <TableLayoutCell>Others(paise)</TableLayoutCell>
+                        <TableLayoutCell>Others(Rs)</TableLayoutCell>
                         <TableLayoutCell>
                           <FormInputText type="number" name='fin_others' value={formData.fin_others}
                             onChange={onRateChange} fullWidth />
