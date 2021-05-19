@@ -23,8 +23,8 @@ const useStyles = makeStyles((theme)=>({
 }));
 
 export const LASSA_UNIT_OPTIONS = [
-  {label:'Yard', value: 'yard', figure: 1852},
-  {label:'Meter', value: 'meter', figure: 1693.33},
+  {label:'Yard', value: 'yard'},
+  {label:'Meter', value: 'meter'},
 ];
 
 

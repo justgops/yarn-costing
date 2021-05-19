@@ -100,8 +100,14 @@ const getFormReducer = (settings)=>(state, action)=>{
   }
 
   const warpPostReducer = (state, rowsChange=false)=>{
+    let length_per_count = 1693.33;
+    let cramp_warp_lassa = parse(state.warp_lassa);
+    if(settings.lassa_unit == 'yard') {
+      length_per_count = 1852;
+      cramp_warp_lassa = cramp_warp_lassa*0.9144;
+    }
     state.warp_total_ends =  parse(state.warp_reed) * (parse(state.warp_panna) + parse(state.warp_reed_space));
-    state.warp_cramp = round((parse(state.warp_lassa)-parse(state.warp_ltol))/parse(state.warp_lassa)*100);
+    state.warp_cramp = round((parse(state.warp_lassa)-parse(state.warp_ltol))/cramp_warp_lassa*100);
     state.warp_weight = 0.0;
     state.warp_weight_wastage = 0.0;
 
@@ -109,7 +115,7 @@ const getFormReducer = (settings)=>(state, action)=>{
     if(!gridValue) return state;
 
     let perct = (100/gridValue.length);
-    let length_per_count = parse(_.find(LASSA_UNIT_OPTIONS, (o)=>o.value==settings.lassa_unit).figure);
+
     for(let row of gridValue) {
       row.perct = rowsChange ? perct : row.perct;
       let weight =
@@ -612,7 +618,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
                           errorMsg={formDataErr.warp_lassa} onChange={onWarpTextChange} />
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Cut Length/L to L" name='warp_ltol' value={formData.warp_ltol}
+                        <FormInputText type="number" label="Cut Length/L to L(Meter)" name='warp_ltol' value={formData.warp_ltol}
                           errorMsg={formDataErr.warp_ltol} onChange={onWarpTextChange} />
                       </FormRowItem>
                       <FormRowItem>

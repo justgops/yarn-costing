@@ -36,6 +36,9 @@ const useStyles = makeStyles((theme)=>({
   noCellBorder: {
     borderRight: 0,
     borderBottom: 0,
+  },
+  middle: {
+    verticalAlign: 'middle',
   }
 }));
 
@@ -117,6 +120,6 @@ export function TableLayoutRow({children}) {
 export function TableLayoutCell({children, className, ...props}) {
   const classes = useStyles();
   return (
-    <td className={clsx(classes.tableCell, classes.tableCellLessPad, classes.noCellBorder, className)} {...props}>{children}</td>
+    <td className={clsx(classes.tableCell, classes.tableCellLessPad, classes.noCellBorder, classes.middle, className)} {...props}>{children}</td>
   )
 }
