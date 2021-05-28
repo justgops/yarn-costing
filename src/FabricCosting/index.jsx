@@ -65,6 +65,7 @@ function FabricCosting(props) {
     {
       Header: 'Name',
       id: 'name',
+      width: '40%',
       accessor: (originalRow)=>originalRow.data.name,
       Cell: ({value, row})=>{
         return <Link onClick={()=>{
@@ -80,6 +81,7 @@ function FabricCosting(props) {
     {
       Header: 'Notes',
       id: 'notes',
+      width: '60%',
       accessor: (originalRow)=>originalRow.data.notes,
       Cell: ({value})=><span>{value}</span>,
     },

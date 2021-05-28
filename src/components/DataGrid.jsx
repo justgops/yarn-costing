@@ -74,7 +74,8 @@ export default function DataGrid({
         {headerGroups.map(headerGroup => (
           <tr {...headerGroup.getHeaderGroupProps()}>
             {headerGroup.headers.filter((column)=>print ? Boolean(column.Print) : true).map(column => (
-              <th {...column.getHeaderProps()} className={classes.tableCell}>{column.render('Header')}</th>
+              <th {...column.getHeaderProps()} className={classes.tableCell}
+                style={fixedLayout ? {width: column.width} : {}}>{column.render('Header')}</th>
             ))}
           </tr>
         ))}
