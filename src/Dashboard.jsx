@@ -133,11 +133,11 @@ function Dashboard({location, ...props}) {
   return(
     <Box className={classes.dashboardRoot}>
       <Box><Toolbar variant="dense"/></Box>
-      <AppBar color="default" elevation={1} component="div">
+      <AppBar color="primary" elevation={1} component="div">
         <Toolbar variant="dense" disableGutters>
           <Box display="flex" style={{padding: '0rem 0.5rem'}} alignItems="center">
             {/* <Logo height="3em" width="3em"/> */}
-            <Typography variant="h6" style={{color: '#d94874'}}>
+            <Typography variant="h6">
               Costing
             </Typography>
           </Box>

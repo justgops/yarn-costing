@@ -27,6 +27,9 @@ const useStyles = makeStyles((theme)=>({
   tableCellLessPad: {
     padding: theme.spacing(0.5),
   },
+  noRows: {
+    textAlign: 'center',
+  },
   noPadding: {
     padding: '0px',
   },
@@ -42,7 +45,9 @@ const useStyles = makeStyles((theme)=>({
   }
 }));
 
-export default function DataGrid({ columns, data, filterText, showFooter=false, tdClassName, fixedLayout=false, print=false }) {
+export default function DataGrid({
+    columns, data, filterText, showFooter=false, tdClassName, fixedLayout=false,
+    print=false, noRowsMessage="No rows found" }) {
   const classes = useStyles();
   // Use the state and functions returned from useTable to build your UI
   const {
@@ -85,6 +90,11 @@ export default function DataGrid({ columns, data, filterText, showFooter=false, 
             </tr>
           )
         })}
+        {rows.length == 0 &&
+          <tr>
+            <td className={clsx(classes.tableCell, classes.noRows)} colSpan="100%">{noRowsMessage}</td>
+          </tr>
+        }
       </tbody>
       {showFooter &&
       <tfoot>

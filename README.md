@@ -54,3 +54,4 @@ npx sequelize-cli model:generate --name TRASNACTION --attributes empid:integer,p
 
 /** Seeders **/ npx sequelize-cli seed:generate --name default-users npx sequelize-cli seed:generate --name default-wagetype
 npx sequelize-cli seed:generate --name default-settings
+npx sequelize-cli seed:generate --name add-default-settings

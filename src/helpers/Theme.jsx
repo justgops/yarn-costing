@@ -62,6 +62,7 @@ export const theme = createMuiTheme({
                 [defaultTheme.breakpoints.up('sm')]: {
                     minWidth: '80px',
                 },
+                fontWeight: 'bold'
             },
             textColorInherit: {
                 textTransform: 'none',
@@ -126,6 +127,11 @@ export const theme = createMuiTheme({
         PrivateSwitchBase: {
             root: {
                 padding: defaultTheme.spacing(0.5),
+            }
+        },
+        PrivateTabIndicator: {
+            root: {
+                height: '3px',
             }
         }
     },

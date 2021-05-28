@@ -8,7 +8,12 @@ const NavButton = ({path, ...props}) => {
   let match = useRouteMatch({
     path: path,
   });
-  return <Button style={{fontSize: theme.typography.fontSize*1.1}} component={RouteLink} to={path} {...otherProps} color={match ? "primary" : "default"} disableTouchRipple>{children}</Button>;
+
+  return (
+    <Button style={{fontSize: theme.typography.fontSize*1.1}}
+      color={match ? "secondary" : "primary"} variant="contained" component={RouteLink}
+      to={path} disableElevation {...otherProps}>{children}</Button>
+  )
 }
 
 export default withRouter(NavButton);

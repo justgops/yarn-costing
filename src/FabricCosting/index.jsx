@@ -6,6 +6,7 @@ import { NOTIFICATION_TYPE, setNotification } from '../store/reducers/notificati
 import Calculator from './Calculator';
 import { BASE_URL, getApi } from '../api';
 import _ from 'lodash';
+import { AddRounded } from '@material-ui/icons';
 
 const useStyles = makeStyles((theme)=>({
   root: {
@@ -124,10 +125,12 @@ function FabricCosting(props) {
               setOpenCalc(true);
             }} style={{marginLeft: '0.5rem'}}
             disabled={licExpired}
-          >Add new</Button>
+            startIcon={<AddRounded />}
+          >Add new quality</Button>
         </Box>
         <Box className={classes.gridarea}>
-          <DataGrid columns={columns} data={qualities} filterText={search} fixedLayout={true}/>
+          <DataGrid columns={columns} data={qualities} filterText={search} fixedLayout={true}
+            noRowsMessage="Click on add new quality"/>
         </Box>
       </Box>
       <Calculator open={openCalc} onClose={()=>setOpenCalc(false)} onSave={onSave} data={selId} />
