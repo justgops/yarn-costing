@@ -1,7 +1,7 @@
 {
   "name": "costing",
   "productName": "Costing",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "main": "main.js",
   "//homepage": "demo/calculator/",
   "proxy": "http://localhost:8787",
