@@ -176,8 +176,10 @@ const getFormReducer = (settings)=>(state, action)=>{
     if(!gridValue) return state;
 
     for(let [i, row] of gridValue.entries()) {
-      row.kg_per_cone = round(parse(row.bag_pack)/parse(row.bag_wt));
-      let cone_measure = 3*parse(state.warps[i].count)*1693.33;
+      let kg_per_cone = parse(row.bag_wt)/parse(row.bag_pack);
+      row.kg_per_cone = round(kg_per_cone);
+
+      let cone_measure = kg_per_cone*parse(state.warps[i].count)*1693.33;
       row.cone_measure = round(cone_measure);
 
       let tara = state.warp_total_ends/parse(row.part);
