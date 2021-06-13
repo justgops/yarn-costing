@@ -14,10 +14,12 @@ import TabPanel from '../components/TabPanel';
 import { LASSA_UNIT_OPTIONS } from '../Settings';
 
 const ROUND_DECIMAL = 5;
+const MARGIN_TABLE_MAX = 25;
 
 function parse(num) {
   if(!isNaN(num) && num) {
-    return Number(num);
+    let ret = Number(num);
+    return isFinite(ret) ? ret : Number(0.0);
   } else {
     return Number(0.0);
   }
@@ -67,6 +69,10 @@ const useStyles = makeStyles((theme)=>({
   },
   alignRight: {
     textAlign: 'right',
+  },
+  mtPerct: {
+    width: '50px',
+    padding: theme.spacing(1),
   }
 }));
 
@@ -96,6 +102,9 @@ const getFormReducer = (settings)=>(state, action)=>{
     state.total_weight_glm_wastage = round(state.warp_weight_wastage + state.weft_weight_wastage);
     state.total_weight_gsm = round((state.total_weight_glm * 39.37)/parse(state.warp_panna));
     [state.prod_cost, state.breakups.prod_cost] = getProdCostWithBreakup(state);
+    for(let i=0; i<MARGIN_TABLE_MAX; i++) {
+      state.margin_table[i] = round(state.prod_cost*(100+i+1)/100);
+    }
     return state;
   }
 
@@ -131,7 +140,6 @@ const getFormReducer = (settings)=>(state, action)=>{
         (100+(state.warp_rate_wgst ? parse(settings.yarn_rate_gst) : 0));
       let sizing_rate = parse(row.sizing_rate)*100/
         (100+(state.warp_sizing_wgst ? parse(settings.sizing_rate_gst) : 0));
-      console.log(rate, sizing_rate);
       row.cost = row.weight_wastage * parse(rate);
       row.sizing_cost = row.weight_wastage * parse(sizing_rate);
     }
@@ -171,27 +179,38 @@ const getFormReducer = (settings)=>(state, action)=>{
     return state;
   }
 
-  const warpPackPostReducer = (state, rowsChange=false)=>{
-    let gridValue = state['warppacks'];
+  const wpWarpReducer = (state)=>{
+    let gridValue = state['wpWarps'];
     if(!gridValue) return state;
 
     for(let [i, row] of gridValue.entries()) {
-      let kg_per_cone = parse(row.bag_wt)/parse(row.bag_pack);
-      row.kg_per_cone = round(kg_per_cone);
+      row.count = state.warps[i].count;
+      row.kg_per_cone = parse(parse(row.bag_wt)/parse(row.bag_pack));
+      row.cone_measure = parse(row.kg_per_cone*parse(state.warps[i].count)*1693.33);
+      row.tara = parse(state.warp_total_ends/parse(row.part));
+      row.sizing_measure = parse(row.cone_measure/parse(row.part));
+      row.fabric_measure = parse(row.sizing_measure/warp_lassa_meter*parse(state.warp_ltol));
+      row.warp_bags = parse((row.tara/parse(row.part))/parse(row.bag_pack));
+      row.total_warp_kg = parse(row.fabric_measure*state.warps[i].weight_wastage);
+      row.per_beam = parse(row.sizing_measure/parse(row.beams));
+      if(i === 0) {
+        state.wp_fabric_meter = round(row.fabric_measure);
+      } else {
+        state.wp_fabric_meter = 0;
+      }
 
-      let cone_measure = kg_per_cone*parse(state.warps[i].count)*1693.33;
-      row.cone_measure = round(cone_measure);
+    }
+    return state;
+  }
 
-      let tara = state.warp_total_ends/parse(row.part);
-      row.tara = round(tara);
+  const wpWeftReducer = (state)=>{
+    let gridValue = state['wpWefts'];
+    if(!gridValue) return state;
 
-      let sizing_measure = cone_measure/parse(row.part);
-      row.sizing_measure = round(sizing_measure);
-
-      row.fabric_measure = round(7/warp_lassa_meter*parse(state.warp_ltol));
-
-      row.warp_bags = round(tara/parse(row.part));
-      row.per_beam = round(sizing_measure/parse(row.beams));
+    for(let [i, row] of gridValue.entries()) {
+      row.count = state.wefts[i].count;
+      row.total_weft_kg = state.wp_fabric_meter*state.wefts[i].weight_wastage;
+      row.weft_bags = round(row.total_weft_kg/parse(row.bag_wt));
     }
     return state;
   }
@@ -250,8 +269,11 @@ const getFormReducer = (settings)=>(state, action)=>{
     if(postReducer == 'weft' || postReducer == 'all') {
       newState = weftPostReducer(newState, rowsChange);
     }
-    if(postReducer == 'warppack' || postReducer == 'all') {
-      newState = warpPackPostReducer(newState, rowsChange);
+    if(postReducer == 'wpwarp' || postReducer == 'all') {
+      newState = wpWarpReducer(newState);
+    }
+    if(postReducer == 'wpweft' || postReducer == 'all') {
+      newState = wpWeftReducer(newState);
     }
   }
   switch(action.type) {
@@ -355,19 +377,17 @@ function getGridCols(basePath, formDispatch, postReducer, otherCols, cellClassNa
         return <OutlinedInput fullWidth inputProps={{style: {fontWeight: 'bold'}}} className={cellClassName} value={total} type="number" readOnly={true} />
       } : '',
       Cell: ({value, row, column})=>{
-        let gstKey = column.id+'_wgst';
         return (
-        <Box display="flex">
-        <OutlinedInput fullWidth className={cellClassName} type="number" value={value} readOnly={col.readOnly} onChange={(e)=>{
-          let value = e.target.value;
-          formDispatch({
-            type: 'set_value',
-            path: basePath.concat([row.index, column.id]),
-            value: value,
-            postReducer: postReducer,
-          });
-        }} />
-        </Box>)
+          <FormInputText fullWidth className={cellClassName} type="number" value={value} readOnly={col.readOnly} onChange={(e)=>{
+            let value = e.target.value;
+            formDispatch({
+              type: 'set_value',
+              path: basePath.concat([row.index, column.id]),
+              value: value,
+              postReducer: postReducer,
+            });
+          }}/>
+        )
       }
     });
   }
@@ -382,11 +402,15 @@ function Calculator({open, onClose, onSave, data, settings}) {
   const [formDataErr, setFormDataErr] = useState({});
 
   useEffect(()=>{
-    /* Sync up warp packs if none */
-    if(editMode && !data.warppacks) {
+    /* Sync up warp/weft packs if none */
+    if(editMode && !data.wpWarps) {
       if(data.warps && data.warps.length > 0) {
-        data.warppacks = new Array(data.warps.length).fill(getDefaultRow(warpPackCols));
+        data.wpWarps = new Array(data.warps.length).fill(getDefaultRow(wpWarpCols));
       }
+      if(data.wefts && data.wefts.length > 0) {
+        data.wpWefts = new Array(data.wefts.length).fill(getDefaultRow(wpWeftCols));
+      }
+      data.margin_table = new Array(MARGIN_TABLE_MAX).fill(0);
     }
     formDispatch({
       type: 'init',
@@ -394,6 +418,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
         fin_elongshrink_opt: 'elongation',
         ...data,
         weft_meter: 1,
+        margin_table: new Array(MARGIN_TABLE_MAX).fill(0),
         breakups: {},
       },
     });
@@ -439,6 +464,20 @@ function Calculator({open, onClose, onSave, data, settings}) {
       path: name,
       value: value,
       postReducer: 'weft',
+    });
+  });
+
+  const onWpWeftTextChange = useCallback((e, name) => {
+    let value = e;
+    if(e && e.target) {
+      name = e.target.name;
+      value = e.target.value;
+    }
+    formDispatch({
+      type: 'set_value',
+      path: name,
+      value: value,
+      postReducer: 'wpweft',
     });
   });
 
@@ -518,25 +557,25 @@ function Calculator({open, onClose, onSave, data, settings}) {
     },
     {
       Header: 'Weight w/wastage(Kg)',
-      accessor: 'weight_wastage',
+      accessor: (row)=>round(row.weight_wastage),
       readOnly: true,
       showTotal: true,
     },
     {
       Header: 'Warp cost(Rs)',
-      accessor: 'cost',
+      accessor: (row)=>round(row.cost),
       readOnly: true,
       showTotal: true,
     },
     {
       Header: 'Warp sizing cost(Rs)',
-      accessor: 'sizing_cost',
+      accessor: (row)=>round(row.sizing_cost),
       readOnly: true,
       showTotal: true,
     },
   ], classes.gridCell, {
-    depPath: 'warppacks',
-    depPostReducer: 'warppack',
+    depPath: 'wpWarps',
+    depPostReducer: 'wpwarp',
   }), [formData.warp_sizing_wgst, formData.warp_rate_wgst]);
 
   const weftCols = useMemo(()=>getGridCols(['wefts'], formDispatch, 'weft',[
@@ -578,19 +617,27 @@ function Calculator({open, onClose, onSave, data, settings}) {
     },
     {
       Header: 'Weight w/wastage(Kg)',
-      accessor: 'weight_wastage',
+      accessor: (row)=>round(row.weight_wastage),
       readOnly: true,
       showTotal: true,
     },
     {
       Header: 'Weft cost(Rs)',
-      accessor: 'cost',
+      accessor: (row)=>round(row.cost),
       readOnly: true,
       showTotal: true,
     },
-  ], classes.gridCell), [formData.weft_rate_wgst]);
+  ], classes.gridCell, {
+    depPath: 'wpWefts',
+    depPostReducer: 'wpweft',
+  }), [formData.weft_rate_wgst]);
 
-  const warpPackCols = useMemo(()=>getGridCols(['warppacks'], formDispatch, 'warppack',[
+  const wpWarpCols = useMemo(()=>getGridCols(['wpWarps'], formDispatch, 'wpwarp',[
+    {
+      Header: 'Warp Count',
+      accessor: 'count',
+      readOnly: true,
+    },
     {
       Header: 'Bag Wt.',
       accessor: 'bag_wt',
@@ -601,12 +648,12 @@ function Calculator({open, onClose, onSave, data, settings}) {
     },
     {
       Header: 'Kg/Cone',
-      accessor: 'kg_per_cone',
+      accessor: (row)=>round(row.kg_per_cone),
       readOnly: true,
     },
     {
       Header: 'Cone Measure',
-      accessor: 'cone_measure',
+      accessor: (row)=>round(row.cone_measure),
       readOnly: true,
     },
     {
@@ -615,22 +662,27 @@ function Calculator({open, onClose, onSave, data, settings}) {
     },
     {
       Header: 'Tara',
-      accessor: 'tara',
+      accessor: (row)=>round(row.tara),
       readOnly: true,
     },
     {
       Header: 'Sizing Measure',
-      accessor: 'sizing_measure',
+      accessor: (row)=>round(row.sizing_measure),
       readOnly: true,
     },
     {
       Header: 'Fabric Measure',
-      accessor: 'fabric_measure',
+      accessor: (row)=>round(row.fabric_measure),
       readOnly: true,
     },
     {
       Header: 'Warp Bags',
-      accessor: 'warp_bags',
+      accessor: (row)=>round(row.warp_bags),
+      readOnly: true,
+    },
+    {
+      Header: 'Total Warp(Kg)',
+      accessor: (row)=>round(row.total_warp_kg),
       readOnly: true,
     },
     {
@@ -639,11 +691,33 @@ function Calculator({open, onClose, onSave, data, settings}) {
     },
     {
       Header: 'Per Beam',
-      accessor: 'per_beam',
+      accessor: (row)=>round(row.per_beam),
+      readOnly: true,
+    },
+  ], classes.gridCell, {}, false), []);
+
+  const wpWeftCols = useMemo(()=>getGridCols(['wpWefts'], formDispatch, 'wpweft',[
+    {
+      Header: 'Weft Count',
+      accessor: 'count',
+      readOnly: true,
     },
     {
-      Header: 'Weft required',
-      accessor: 'weft_req',
+      Header: 'Bag Wt.',
+      accessor: 'bag_wt',
+    },
+    {
+      Header: 'Bag Packing',
+      accessor: 'bag_pack',
+    },
+    {
+      Header: 'Weft Bags',
+      accessor: (row)=>round(row.weft_bags),
+      readOnly: true,
+    },
+    {
+      Header: 'Total Weft(Kg)',
+      accessor: (row)=>round(row.total_weft_kg),
       readOnly: true,
     },
   ], classes.gridCell, {}, false), []);
@@ -661,6 +735,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
 
   const reportRef = useRef()
   const theme = useTheme();
+  const marginTableRows = Math.ceil((formData.margin_table||[]).length/3);
   const [tabvalue, setTabvalue] = React.useState(0);
 
   const tabChange = (event, newValue) => {
@@ -691,7 +766,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
           <Box>
             <Tabs value={tabvalue} onChange={tabChange} aria-label="simple tabs example">
               <Tab label="Warp/Weft" />
-              <Tab label="Cost breakup" />
+              <Tab label="Finish fabric" />
               <Tab label="Packing" />
             </Tabs>
           </Box>
@@ -704,7 +779,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
                   <Box style={{padding: '0.5rem'}}>
                     <FormRow>
                       <FormRowItem>
-                        <FormInputText type="number" type="number" label="EPI/Reed(Inch)" name='warp_reed' value={formData.warp_reed}
+                        <FormInputText type="number" label="EPI/Reed(Inch)" name='warp_reed' value={formData.warp_reed}
                           errorMsg={formDataErr.warp_reed} onChange={onWarpTextChange} fullWidth/>
                       </FormRowItem>
                       <FormRowItem>
@@ -732,7 +807,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
                           errorMsg={formDataErr.warp_cramp} onChange={onWarpTextChange} readOnly/>
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Total ends" name='warp_total_ends' value={formData.warp_total_ends}
+                        <FormInputText type="number" label="Total ends" name='warp_total_ends' value={round(formData.warp_total_ends)}
                           readOnly />
                       </FormRowItem>
                     </FormRow>
@@ -745,9 +820,9 @@ function Calculator({open, onClose, onSave, data, settings}) {
                       path: 'warps',
                       value: getDefaultRow(warpCols),
                       postReducer: 'warp',
-                      depPath: 'warppacks',
-                      depPostReducer: 'warppack',
-                      depValue: getDefaultRow(warpPackCols),
+                      depPath: 'wpWarps',
+                      depPostReducer: 'wpwarp',
+                      depValue: getDefaultRow(wpWarpCols),
                     });
                   }}>Add warp</Button>
                   <Divider style={{marginTop: '0.5rem'}} />
@@ -789,6 +864,9 @@ function Calculator({open, onClose, onSave, data, settings}) {
                       path: 'wefts',
                       value: getDefaultRow(weftCols),
                       postReducer: 'weft',
+                      depPath: 'wpWefts',
+                      depPostReducer: 'wpweft',
+                      depValue: getDefaultRow(wpWeftCols),
                     });
                   }}>Add weft</Button>
                 </Paper>
@@ -831,129 +909,160 @@ function Calculator({open, onClose, onSave, data, settings}) {
                 </Paper>
               </Grid>
             </Grid>
-            <Box display="none">
-              <PrintPage formData={formData} printRef={reportRef} warpCols={warpCols} weftCols={weftCols}/>
-            </Box>
+            <Paper style={{marginTop: '0.5rem'}}>
+              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.25rem'}}>Cost breakup</Typography>
+              <Divider />
+              <Box style={{padding: '0.5rem'}}>
+                <Grid container spacing={1}>
+                  <Grid item md={4} sm={12} xs={12}>
+                    <TableLayout>
+                      <TableLayoutRow>
+                        <TableLayoutCell colSpan={4} className={classes.borderBottom} style={{textAlign: 'center'}}>
+                          <Typography color="secondary">Gray Fabric</Typography>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell></TableLayoutCell>
+                        <TableLayoutCell></TableLayoutCell>
+                        <TableLayoutCell>
+                          <Box>
+                          Production cost
+                          <FormInfo>
+                            <Box p={1}>
+                              <TableLayout>
+                                {formData.breakups?.prod_cost && Object.keys(formData.breakups.prod_cost).map((b)=>{
+                                  return (
+                                    <TableLayoutRow>
+                                      <TableLayoutCell>{b}</TableLayoutCell>
+                                      <TableLayoutCell>{formData.breakups.prod_cost[b]}</TableLayoutCell>
+                                    </TableLayoutRow>
+                                  )
+                                })}
+                              </TableLayout>
+                            </Box>
+                          </FormInfo>
+                          </Box>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
+                        <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
+                        <TableLayoutCell className={classes.borderBottom}>
+                          <FormInputText type="number" name='prod_cost' value={formData.prod_cost}
+                            readOnly />
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Gray market price</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_market_price' value={formData.gray_market_price}
+                            onChange={onRateChange} />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_market_price' value={formData.gray_market_price} readOnly />
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Brokerage(%)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_brokerage' value={formData.gray_brokerage}
+                            onChange={onRateChange} />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_brokerage_calc' value={formData.gray_brokerage_calc} readOnly />
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Interest(%)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_interest' value={formData.gray_interest}
+                            onChange={onRateChange} />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_interest_calc' value={formData.gray_interest_calc} readOnly />
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Cash discount(%)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_cashdisc' value={formData.gray_cashdisc}
+                            onChange={onRateChange} />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_cashdisc_calc' value={formData.gray_cashdisc_calc} readOnly />
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell>Others(%)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_others' value={formData.gray_others}
+                            onChange={onRateChange} />
+                        </TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_others_calc' value={formData.gray_others_calc} readOnly />
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell className={classes.borderTop}></TableLayoutCell>
+                        <TableLayoutCell className={clsx(classes.borderTop, classes.alignRight)}>Total</TableLayoutCell>
+                        <TableLayoutCell className={classes.borderTop}>
+                          <FormInputText type="number" name='gray_total' value={formData.gray_total} readOnly highlight/>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell></TableLayoutCell>
+                        <TableLayoutCell className={classes.alignRight}>Profit(%)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_profit' value={formData.gray_profit} readOnly profit/>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      <TableLayoutRow>
+                        <TableLayoutCell></TableLayoutCell>
+                        <TableLayoutCell className={classes.alignRight}>Reverse Job Rate(Paise)</TableLayoutCell>
+                        <TableLayoutCell>
+                          <FormInputText type="number" name='gray_revjobrate' value={formData.gray_revjobrate} readOnly highlight/>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                    </TableLayout>
+                  </Grid>
+                  <Grid item md={1} sm={12} xs={12}></Grid>
+                  <Grid item md={7} sm={12} xs={12}>
+                    <TableLayout>
+                      <TableLayoutRow>
+                        <TableLayoutCell colSpan={99} className={classes.borderBottom} style={{textAlign: 'center'}}>
+                          <Typography color="secondary">Margin Table</Typography>
+                        </TableLayoutCell>
+                      </TableLayoutRow>
+                      {[...new Array(marginTableRows)].map((v, irow)=>{
+                        let mt = formData.margin_table || [];
+                        return (
+                          <TableLayoutRow>
+                            <TableLayoutCell className={classes.mtPerct}>{0+irow+1}%</TableLayoutCell>
+                            <TableLayoutCell>{mt[0+irow]}</TableLayoutCell>
+                            {marginTableRows+irow < mt.length && <>
+                            <TableLayoutCell className={classes.mtPerct}>{marginTableRows+irow+1}%</TableLayoutCell>
+                            <TableLayoutCell>{mt[marginTableRows+irow]}</TableLayoutCell>
+                            </>}
+                            {2*marginTableRows+irow < mt.length && <>
+                            <TableLayoutCell className={classes.mtPerct}>{2*marginTableRows+irow+1}%</TableLayoutCell>
+                            <TableLayoutCell>{mt[2*marginTableRows+irow]}</TableLayoutCell>
+                            </>}
+                          </TableLayoutRow>
+                        )
+                      })}
+                    </TableLayout>
+                  </Grid>
+                </Grid>
+              </Box>
+            </Paper>
           </TabPanel>
           <TabPanel value={tabvalue} index={1}>
             <Box style={{padding: '0.5rem'}}>
               <Grid container spacing={1}>
-                <Grid item md={4} sm={12} xs={12}>
-                  <TableLayout>
-                    <TableLayoutRow>
-                      <TableLayoutCell colspan={4} className={classes.borderBottom} style={{textAlign: 'center'}}>
-                        <Typography color="secondary">Gray Fabric</Typography>
-                      </TableLayoutCell>
-                    </TableLayoutRow>
-                    <TableLayoutRow>
-                      <TableLayoutCell></TableLayoutCell>
-                      <TableLayoutCell></TableLayoutCell>
-                      <TableLayoutCell>
-                        <Box>
-                        Production cost
-                        <FormInfo>
-                          <Box p={1}>
-                            <TableLayout>
-                              {formData.breakups?.prod_cost && Object.keys(formData.breakups.prod_cost).map((b)=>{
-                                return (
-                                  <TableLayoutRow>
-                                    <TableLayoutCell>{b}</TableLayoutCell>
-                                    <TableLayoutCell>{formData.breakups.prod_cost[b]}</TableLayoutCell>
-                                  </TableLayoutRow>
-                                )
-                              })}
-                            </TableLayout>
-                          </Box>
-                        </FormInfo>
-                        </Box>
-                      </TableLayoutCell>
-                    </TableLayoutRow>
-                    <TableLayoutRow>
-                      <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
-                      <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
-                      <TableLayoutCell className={classes.borderBottom}>
-                        <FormInputText type="number" name='prod_cost' value={formData.prod_cost}
-                          readOnly />
-                      </TableLayoutCell>
-                    </TableLayoutRow>
-                    <TableLayoutRow>
-                      <TableLayoutCell>Gray market price</TableLayoutCell>
-                      <TableLayoutCell>
-                        <FormInputText type="number" name='gray_market_price' value={formData.gray_market_price}
-                          onChange={onRateChange} />
-                      </TableLayoutCell>
-                      <TableLayoutCell>
-                        <FormInputText type="number" name='gray_market_price' value={formData.gray_market_price} readOnly />
-                      </TableLayoutCell>
-                    </TableLayoutRow>
-                    <TableLayoutRow>
-                      <TableLayoutCell>Brokerage(%)</TableLayoutCell>
-                      <TableLayoutCell>
-                        <FormInputText type="number" name='gray_brokerage' value={formData.gray_brokerage}
-                          onChange={onRateChange} />
-                      </TableLayoutCell>
-                      <TableLayoutCell>
-                        <FormInputText type="number" name='gray_brokerage_calc' value={formData.gray_brokerage_calc} readOnly />
-                      </TableLayoutCell>
-                    </TableLayoutRow>
-                    <TableLayoutRow>
-                      <TableLayoutCell>Interest(%)</TableLayoutCell>
-                      <TableLayoutCell>
-                        <FormInputText type="number" name='gray_interest' value={formData.gray_interest}
-                          onChange={onRateChange} />
-                      </TableLayoutCell>
-                      <TableLayoutCell>
-                        <FormInputText type="number" name='gray_interest_calc' value={formData.gray_interest_calc} readOnly />
-                      </TableLayoutCell>
-                    </TableLayoutRow>
-                    <TableLayoutRow>
-                      <TableLayoutCell>Cash discount(%)</TableLayoutCell>
-                      <TableLayoutCell>
-                        <FormInputText type="number" name='gray_cashdisc' value={formData.gray_cashdisc}
-                          onChange={onRateChange} />
-                      </TableLayoutCell>
-                      <TableLayoutCell>
-                        <FormInputText type="number" name='gray_cashdisc_calc' value={formData.gray_cashdisc_calc} readOnly />
-                      </TableLayoutCell>
-                    </TableLayoutRow>
-                    <TableLayoutRow>
-                      <TableLayoutCell>Others(%)</TableLayoutCell>
-                      <TableLayoutCell>
-                        <FormInputText type="number" name='gray_others' value={formData.gray_others}
-                          onChange={onRateChange} />
-                      </TableLayoutCell>
-                      <TableLayoutCell>
-                        <FormInputText type="number" name='gray_others_calc' value={formData.gray_others_calc} readOnly />
-                      </TableLayoutCell>
-                    </TableLayoutRow>
-                    <TableLayoutRow>
-                      <TableLayoutCell className={classes.borderTop}></TableLayoutCell>
-                      <TableLayoutCell className={clsx(classes.borderTop, classes.alignRight)}>Total</TableLayoutCell>
-                      <TableLayoutCell className={classes.borderTop}>
-                        <FormInputText type="number" name='gray_total' value={formData.gray_total} readOnly highlight/>
-                      </TableLayoutCell>
-                    </TableLayoutRow>
-                    <TableLayoutRow>
-                      <TableLayoutCell></TableLayoutCell>
-                      <TableLayoutCell className={classes.alignRight}>Profit(%)</TableLayoutCell>
-                      <TableLayoutCell>
-                        <FormInputText type="number" name='gray_profit' value={formData.gray_profit} readOnly profit/>
-                      </TableLayoutCell>
-                    </TableLayoutRow>
-                    <TableLayoutRow>
-                      <TableLayoutCell></TableLayoutCell>
-                      <TableLayoutCell className={classes.alignRight}>Reverse Job Rate(Paise)</TableLayoutCell>
-                      <TableLayoutCell>
-                        <FormInputText type="number" name='gray_revjobrate' value={formData.gray_revjobrate} readOnly highlight/>
-                      </TableLayoutCell>
-                    </TableLayoutRow>
-                  </TableLayout>
-                </Grid>
-                <Grid item md={1} sm={12} xs={12}></Grid>
                 <Grid item md={7} sm={12} xs={12}>
                   <TableLayout>
                     <TableLayoutRow>
-                      <TableLayoutCell colspan={4} className={classes.borderBottom} style={{textAlign: 'center'}}>
+                      <TableLayoutCell colSpan={4} className={classes.borderBottom} style={{textAlign: 'center'}}>
                         <Typography color="secondary">Finish Fabric</Typography>
                       </TableLayoutCell>
                     </TableLayoutRow>
@@ -1088,8 +1197,31 @@ function Calculator({open, onClose, onSave, data, settings}) {
             </Box>
           </TabPanel>
           <TabPanel value={tabvalue} index={2}>
-            <DataGrid columns={warpPackCols} data={formData.warppacks || []} tdClassName={classes.inputGridTd} />
+            <Paper style={{height: '100%'}}>
+              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.25rem'}}>Warp required</Typography>
+              <Divider />
+              <DataGrid columns={wpWarpCols} data={formData.wpWarps || []} tdClassName={classes.inputGridTd} />
+              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.25rem'}}>Weft required</Typography>
+              <Divider />
+              <Box style={{padding: '0.5rem'}}>
+                <FormRow>
+                  <FormRowItem>
+                    <FormInputText type="number" label="Fabric Meter" name='wp_fabric_meter' value={formData.wp_fabric_meter}
+                      onChange={onWpWeftTextChange}/>
+                  </FormRowItem>
+                  <FormRowItem></FormRowItem>
+                  <FormRowItem></FormRowItem>
+                  <FormRowItem></FormRowItem>
+                  <FormRowItem></FormRowItem>
+                  <FormRowItem></FormRowItem>
+                </FormRow>
+              </Box>
+              <DataGrid columns={wpWeftCols} data={formData.wpWefts || []} tdClassName={classes.inputGridTd} />
+            </Paper>
           </TabPanel>
+        </Box>
+        <Box display="none">
+          <PrintPage formData={formData} printRef={reportRef} warpCols={warpCols} weftCols={weftCols}/>
         </Box>
 
       </DialogContent>

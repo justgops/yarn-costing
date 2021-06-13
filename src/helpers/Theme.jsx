@@ -67,6 +67,9 @@ export const theme = createMuiTheme({
             textColorInherit: {
                 textTransform: 'none',
                 opacity: 1,
+            },
+            "&$selected": {
+                backgroundColor: globalTheme.palette.primary.main,
             }
         },
         MuiButton: {

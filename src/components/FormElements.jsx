@@ -131,12 +131,13 @@ export function FormInfo({children}) {
 export function FormInput({children, info, ...props}) {
   return (
     <Box width="100%">
+      {props.label &&
       <Box display="flex" style={{alignItems: 'flex-end', marginBottom: '4px'}}>
         <FormLabel component={Box} required={props.required}>
           {props.label}
         </FormLabel>
         {info && <FormInfo>{info}</FormInfo>}
-      </Box>
+      </Box>}
       {children}
       {props.bottomLabel && <Box display="flex" style={{alignItems: 'flex-end'}}>
         <FormLabel component={Box} required={props.required}>
@@ -218,8 +219,25 @@ export class FormFieldValidator {
   }
 }
 
-export function FormInputText({InputIcon, errorMsg, required, onChange, label, bottomLabel, readOnly, info, hasCopy, inputProps, highlight, profit, ...props}) {
+export function FormInputText({InputIcon, errorMsg, required, onChange, label, bottomLabel, readOnly, info, hasCopy, type, inputProps, highlight, profit, ...props}) {
   const classes = useStyles();
+  let extraProps = {};
+  let finalInpProps = {
+    ...inputProps,
+  }
+  if(type == 'number') {
+    /* Convert to tel and add pattern */
+    extraProps = {
+      type: 'tel',
+      onChange: (e)=>{
+        let val = e.target.value;
+        if(e.target.validity.valid || val === '' || val === '-') {
+          onChange(e);
+        };
+      }
+    };
+    finalInpProps.pattern = '^-?[0-9]\\d*\\.?\\d*$';
+  }
 
   return (
     <FormInput required={required} label={label} bottomLabel={bottomLabel} info={info}>
@@ -245,13 +263,14 @@ export function FormInputText({InputIcon, errorMsg, required, onChange, label, b
             'data-label': label,
             'data-required': required,
             readOnly: Boolean(readOnly),
-            ...inputProps,
+            ...finalInpProps,
           }}
           onChange={onChange}
           onBlur={onChange}
           {...props}
+          {...extraProps}
         />
-        <FormHelperText>{errorMsg}</FormHelperText>
+        {errorMsg && <FormHelperText>{errorMsg}</FormHelperText>}
       </FormControl>
     </FormInput>
   );
