@@ -44,7 +44,7 @@ function getAxiosErr(err) {
 function FabricCosting(props) {
   const classes = useStyles();
   const [openCalc, setOpenCalc] = useState(false);
-  const [selId, setSelId] = useState({});
+  const [selId, setSelId] = useState(null);
   const [qualities, setQualities] = useState([]);
   const homeRef = useRef();
   const apiObj = useMemo(()=>getApi(), []);
@@ -63,58 +63,83 @@ function FabricCosting(props) {
 
   const columns = useMemo(()=>[
     {
+      Header: '',
+      id: 'btn-del',
+      width: '30px',
+      // Cell: ({value, row})=>{
+      //   return <Link onClick={()=>{
+      //     if(licExpired) return;
+      //     setSelId(row.original.id);
+      //     setOpenCalc(true);
+      //   }} href="#">{value}</Link>
+      // }
+    },
+    {
+      Header: '',
+      id: 'btn-edit',
+      width: '30px',
+      // Cell: ({value, row})=>{
+      //   return <Link onClick={()=>{
+      //     if(licExpired) return;
+      //     setSelId(row.original.id);
+      //     setOpenCalc(true);
+      //   }} href="#">{value}</Link>
+      // }
+    },
+    {
       Header: 'Name',
-      id: 'name',
-      width: '40%',
-      accessor: (originalRow)=>originalRow.data.name,
+      accessor: 'name',
+      width: '25%',
       Cell: ({value, row})=>{
         return <Link onClick={()=>{
           if(licExpired) return;
-          setSelId({
-            id: row.original.id,
-            ...row.original.data
-          });
+          setSelId(row.original.id);
           setOpenCalc(true);
         }} href="#">{value}</Link>
       }
     },
     {
+      Header: 'Agent',
+      accessor: 'agentId',
+      width: '20%',
+      // accessor: (originalRow)=>originalRow.data.notes,
+      // Cell: ({value})=><span>{value}</span>,
+    },
+    {
+      Header: 'Party',
+      accessor: 'partyId',
+      width: '20%',
+      // accessor: (originalRow)=>originalRow.data.notes,
+      // Cell: ({value})=><span>{value}</span>,
+    },{
       Header: 'Notes',
-      id: 'notes',
-      width: '60%',
-      accessor: (originalRow)=>originalRow.data.notes,
+      accessor: 'notes',
+      width: '35%',
       Cell: ({value})=><span>{value}</span>,
     },
   ], [licExpired]);
 
   const [search, setSearch] = useState('');
 
-  const onSave = (isNew, formData)=>{
-    let {id, ...data} = formData;
-    let method = 'POST', url = BASE_URL.QUALITIES;
-    if(!isNew) {
-      method = 'PUT';
-      url += '/' + id;
+  const onClose = (otherData)=>{
+    if(otherData?.id) {
+      setQualities((prevQualities)=>{
+        let qIndx = _.findIndex(qualities, (q)=>q.id == otherData.id);
+        if(qIndx > 0) {
+          return [
+            ...prevQualities.slice(0, qIndx),
+            otherData,
+            ...prevQualities.slice(qIndx+1),
+          ];
+        } else {
+          return [
+            ...prevQualities,
+            otherData,
+          ];
+        }
+      });
     }
-    apiObj({
-      method: method,
-      url: url,
-      data: data,
-    }).then((res)=>{
-      let newQ = [
-        ...qualities,
-      ];
-      if(isNew){
-        newQ.push(res.data);
-      } else {
-        _.set(newQ, [_.findIndex(qualities, (q)=>q.id == id), 'data'], data);
-      }
-      setQualities(newQ);
-      setOpenCalc(false);
-      props.setNotification(NOTIFICATION_TYPE.SUCCESS, 'Quality saved successfully');
-    }).catch((err)=>{
-      props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(err));
-    });
+    setOpenCalc(false);
   }
 
   return (
@@ -135,7 +160,7 @@ function FabricCosting(props) {
             noRowsMessage="Click on add new quality"/>
         </Box>
       </Box>
-      <Calculator open={openCalc} onClose={()=>setOpenCalc(false)} onSave={onSave} data={selId} />
+      <Calculator open={openCalc} onClose={onClose} selId={selId} />
     </Box>
   )
 }

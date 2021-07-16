@@ -1,8 +1,10 @@
 import { Accordion, AccordionDetails, AccordionSummary, Box, Button, Card, CardContent, CardHeader, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, Divider, FormControlLabel, Grid, IconButton, makeStyles, OutlinedInput, Paper, Slide, Tab, Tabs, Typography, useTheme } from '@material-ui/core';
+import ToggleButton from '@material-ui/lab/ToggleButton';
+import ToggleButtonGroup from '@material-ui/lab/ToggleButtonGroup';
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { connect } from 'react-redux';
 import DataGrid, { TableLayout, TableLayoutCell, TableLayoutRow } from '../components/DataGrid';
-import { setNotification } from '../store/reducers/notification';
+import { NOTIFICATION_TYPE, setNotification } from '../store/reducers/notification';
 import _ from 'lodash';
 import { FormRowItem, FormInputText, FormRow, FormInputSelect, FormInfo } from '../components/FormElements';
 import DeleteForeverRoundedIcon from '@material-ui/icons/DeleteForeverRounded';
@@ -10,8 +12,11 @@ import CloseOutlinedIcon from '@material-ui/icons/CloseOutlined';
 import ReactToPrint from 'react-to-print';
 import { getSettings } from '../store/reducers/settings';
 import clsx from 'clsx';
-import TabPanel from '../components/TabPanel';
+import TabPanel, { ButtonTab } from '../components/TabPanel';
 import { LASSA_UNIT_OPTIONS } from '../Settings';
+import axios from 'axios';
+import { BASE_URL, getApi } from '../api';
+import { getAxiosErr } from '../utils';
 
 const ROUND_DECIMAL = 5;
 const MARGIN_TABLE_MAX = 25;
@@ -95,7 +100,7 @@ function getProdCostWithBreakup(state) {
   return [round(prod_cost), breakup];
 }
 
-const getFormReducer = (settings)=>(state, action)=>{
+const getCalcReducer = (settings)=>(state, action)=>{
   const warpWeftReducer = (state)=>{
 
     state.total_weight_glm = round(state.warp_weight + state.weft_weight);
@@ -324,7 +329,7 @@ const getFormReducer = (settings)=>(state, action)=>{
 
 
 
-function getGridCols(basePath, formDispatch, postReducer, otherCols, cellClassName, depDetails={}, canDelete=true) {
+function getGridCols(basePath, fieldsDispatch, postReducer, otherCols, cellClassName, depDetails={}, canDelete=true) {
   let baseCols = [{
     Header: '',
     id: 'id',
@@ -342,7 +347,7 @@ function getGridCols(basePath, formDispatch, postReducer, otherCols, cellClassNa
       Cell: ({row})=>{
         return <IconButton onClick={(e)=>{
           e.preventDefault();
-          formDispatch({
+          fieldsDispatch({
             type: 'remove_grid_row',
             path: basePath,
             value: row.index,
@@ -380,7 +385,7 @@ function getGridCols(basePath, formDispatch, postReducer, otherCols, cellClassNa
         return (
           <FormInputText fullWidth className={cellClassName} type="number" value={value} readOnly={col.readOnly} onChange={(e)=>{
             let value = e.target.value;
-            formDispatch({
+            fieldsDispatch({
               type: 'set_value',
               path: basePath.concat([row.index, column.id]),
               value: value,
@@ -395,47 +400,92 @@ function getGridCols(basePath, formDispatch, postReducer, otherCols, cellClassNa
   return baseCols;
 }
 
-function Calculator({open, onClose, onSave, data, settings}) {
+function SectionHead({children}) {
+  return <Typography color="secondary" style={{textAlign: 'center', padding: '0.25rem', fontSize: '1.1rem'}}>{children}</Typography>;
+}
+
+function Calculator({open, onClose, selId, settings, ...props}) {
   const classes = useStyles();
-  const editMode = !_.isNull(data) && !_.isUndefined(data);
-  const [formData, formDispatch] = useReducer(getFormReducer(settings), data);
+  const apiObj = useMemo(()=>getApi(), []);
+
+  const [otherData, setOtherData] = useState({});
+  const [fieldsData, fieldsDispatch] = useReducer(getCalcReducer(settings), {});
   const [formDataErr, setFormDataErr] = useState({});
+  const editMode = !_.isNull(otherData.id) && !_.isUndefined(otherData.id);
 
-  useEffect(()=>{
-    /* Sync up warp/weft packs if none */
-    if(editMode && !data.wpWarps) {
-      if(data.warps && data.warps.length > 0) {
-        data.wpWarps = new Array(data.warps.length).fill(getDefaultRow(wpWarpCols));
+  useEffect(async ()=>{
+    let other = {};
+    let data = {};
+    try {
+      if(selId) {
+        let res = await apiObj.get(BASE_URL.QUALITY_DATA + '/' + selId);
+        data = res.data.data;
+        delete res.data.data;
+        other = res.data;
+        /* Sync up warp/weft packs if none */
+        if(!data.wpWarps) {
+          if(data.warps && data.warps.length > 0) {
+            data.wpWarps = new Array(data.warps.length).fill(getDefaultRow(wpWarpCols));
+          }
+          if(data.wefts && data.wefts.length > 0) {
+            data.wpWefts = new Array(data.wefts.length).fill(getDefaultRow(wpWeftCols));
+          }
+          data.margin_table = new Array(MARGIN_TABLE_MAX).fill(0);
+        }
       }
-      if(data.wefts && data.wefts.length > 0) {
-        data.wpWefts = new Array(data.wefts.length).fill(getDefaultRow(wpWeftCols));
-      }
-      data.margin_table = new Array(MARGIN_TABLE_MAX).fill(0);
+      setOtherData(other);
+      fieldsDispatch({
+        type: 'init',
+        value: {
+          fin_elongshrink_opt: 'elongation',
+          ...data,
+          weft_meter: 1,
+          margin_table: new Array(MARGIN_TABLE_MAX).fill(0),
+          breakups: {},
+        },
+      });
+    } catch(err) {
+      props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(err));
     }
-    formDispatch({
-      type: 'init',
-      value: {
-        fin_elongshrink_opt: 'elongation',
-        ...data,
-        weft_meter: 1,
-        margin_table: new Array(MARGIN_TABLE_MAX).fill(0),
-        breakups: {},
-      },
-    });
-  }, [data]);
+  }, [selId]);
 
-  const onTextChange = useCallback((e, name) => {
+  const onSave = (copy=false, close=false)=>{
+    let method = 'POST', url = BASE_URL.QUALITIES;
+    if(editMode && !copy) {
+      method = 'PUT';
+      url += '/' + otherData.id;
+    }
+    apiObj({
+      method: method,
+      url: url,
+      data: {
+        ...otherData,
+        data: fieldsData,
+      },
+    }).then((res)=>{
+      if(!editMode || copy) {
+        onOtherChange(res.data, 'id');
+      }
+      props.setNotification(NOTIFICATION_TYPE.SUCCESS, 'Quality saved successfully');
+      if(close) {
+        onClose(otherData);
+      }
+    }).catch((err)=>{
+      props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(err));
+    });
+  }
+
+  const onOtherChange = useCallback((e, name) => {
     let value = e;
     if(e && e.target) {
       name = e.target.name;
       value = e.target.value;
     }
 
-    formDispatch({
-      type: 'set_value',
-      path: name,
-      value: value,
-    });
+    setOtherData((prevData)=>({
+      ...prevData,
+      [name]: value,
+    }));
   });
 
   const onWarpTextChange = useCallback((e, name) => {
@@ -445,7 +495,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
       value = e.target.value;
     }
 
-    formDispatch({
+    fieldsDispatch({
       type: 'set_value',
       path: name,
       value: value,
@@ -459,7 +509,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
       name = e.target.name;
       value = e.target.value;
     }
-    formDispatch({
+    fieldsDispatch({
       type: 'set_value',
       path: name,
       value: value,
@@ -473,7 +523,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
       name = e.target.name;
       value = e.target.value;
     }
-    formDispatch({
+    fieldsDispatch({
       type: 'set_value',
       path: name,
       value: value,
@@ -487,14 +537,14 @@ function Calculator({open, onClose, onSave, data, settings}) {
       name = e.target.name;
       value = e.target.value;
     }
-    formDispatch({
+    fieldsDispatch({
       type: 'set_value',
       path: name,
       value: value,
     });
   });
 
-  const warpCols = useMemo(()=>getGridCols(['warps'], formDispatch, 'warp', [
+  const warpCols = useMemo(()=>getGridCols(['warps'], fieldsDispatch, 'warp', [
     {
       Header: 'Count',
       accessor: 'count',
@@ -517,7 +567,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
             <Checkbox
               color="primary"
               size="small"
-              checked={formData.warp_rate_wgst}
+              checked={fieldsData.warp_rate_wgst}
               onChange={(e)=>{
                 onWarpTextChange(e.target.checked, 'warp_rate_wgst')
               }}
@@ -540,7 +590,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
             <Checkbox
               color="primary"
               size="small"
-              checked={formData.warp_sizing_wgst}
+              checked={fieldsData.warp_sizing_wgst}
               onChange={(e)=>{
                 onWarpTextChange(e.target.checked, 'warp_sizing_wgst')
               }}
@@ -576,9 +626,9 @@ function Calculator({open, onClose, onSave, data, settings}) {
   ], classes.gridCell, {
     depPath: 'wpWarps',
     depPostReducer: 'wpwarp',
-  }), [formData.warp_sizing_wgst, formData.warp_rate_wgst]);
+  }), [fieldsData.warp_sizing_wgst, fieldsData.warp_rate_wgst]);
 
-  const weftCols = useMemo(()=>getGridCols(['wefts'], formDispatch, 'weft',[
+  const weftCols = useMemo(()=>getGridCols(['wefts'], fieldsDispatch, 'weft',[
     {
       Header: 'Count',
       accessor: 'count',
@@ -602,7 +652,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
             <Checkbox
               color="primary"
               size="small"
-              checked={formData.weft_rate_wgst}
+              checked={fieldsData.weft_rate_wgst}
               onChange={(e)=>{
                 onWeftTextChange(e.target.checked, 'weft_rate_wgst')
               }}
@@ -630,9 +680,9 @@ function Calculator({open, onClose, onSave, data, settings}) {
   ], classes.gridCell, {
     depPath: 'wpWefts',
     depPostReducer: 'wpweft',
-  }), [formData.weft_rate_wgst]);
+  }), [fieldsData.weft_rate_wgst]);
 
-  const wpWarpCols = useMemo(()=>getGridCols(['wpWarps'], formDispatch, 'wpwarp',[
+  const wpWarpCols = useMemo(()=>getGridCols(['wpWarps'], fieldsDispatch, 'wpwarp',[
     {
       Header: 'Warp Count',
       accessor: 'count',
@@ -696,7 +746,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
     },
   ], classes.gridCell, {}, false), []);
 
-  const wpWeftCols = useMemo(()=>getGridCols(['wpWefts'], formDispatch, 'wpweft',[
+  const wpWeftCols = useMemo(()=>getGridCols(['wpWefts'], fieldsDispatch, 'wpweft',[
     {
       Header: 'Weft Count',
       accessor: 'count',
@@ -735,7 +785,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
 
   const reportRef = useRef()
   const theme = useTheme();
-  const marginTableRows = Math.ceil((formData.margin_table||[]).length/3);
+  const marginTableRows = Math.ceil((fieldsData.margin_table||[]).length/3);
   const [tabvalue, setTabvalue] = React.useState(0);
 
   const tabChange = (event, newValue) => {
@@ -743,79 +793,83 @@ function Calculator({open, onClose, onSave, data, settings}) {
   };
 
   return (
-    <Dialog onClose={onClose} disableEscapeKeyDown open={open} fullScreen scroll='paper' TransitionProps={{
+    <Dialog disableEscapeKeyDown open={open} fullScreen scroll='paper' TransitionProps={{
       enter: false,
       exit: false,
     }}>
       <DialogTitle id="simple-dialog-title">
-        <IconButton onClick={onClose} style={{marginRight: '0.5rem'}}><CloseOutlinedIcon /></IconButton>
+        <IconButton onClick={()=>onClose(otherData)} style={{marginRight: '0.5rem'}}><CloseOutlinedIcon /></IconButton>
         {editMode ? 'Update quality' : 'Add new quality'}
       </DialogTitle>
       <DialogContent dividers={true}>
         <FormRow>
           <FormRowItem>
-            <FormInputText autoFocus label="Name" name='name' value={formData.name}
-              errorMsg={formDataErr.name} onChange={onTextChange} />
+            <FormInputText autoFocus label="Name" name='name' value={otherData.name}
+              errorMsg={formDataErr.name} onChange={onOtherChange} />
           </FormRowItem>
           <FormRowItem>
-            <FormInputText label="Notes" name='notes' value={formData.notes}
-              errorMsg={formDataErr.notes} onChange={onTextChange} />
+            <FormInputText label="Notes" name='notes' value={otherData.notes}
+              errorMsg={formDataErr.notes} onChange={onOtherChange} />
           </FormRowItem>
         </FormRow>
-        <Box display="flex" flexDirection="column" height="100%" style={{minHeight: 0}}>
-          <Box>
-            <Tabs value={tabvalue} onChange={tabChange} aria-label="simple tabs example">
-              <Tab label="Warp/Weft" />
-              <Tab label="Finish fabric" />
-              <Tab label="Packing" />
-            </Tabs>
-          </Box>
+        {useMemo(()=><Box display="flex" flexDirection="column" height="100%" style={{minHeight: 0}}>
+          <ToggleButtonGroup size="small" value={tabvalue} exclusive onChange={tabChange}>
+            <ToggleButton value={0}>
+              Warp/Weft
+            </ToggleButton>
+            <ToggleButton value={1}>
+              Finish fabric
+            </ToggleButton>
+            <ToggleButton value={2}>
+              Packing
+            </ToggleButton>
+          </ToggleButtonGroup>
           <TabPanel value={tabvalue} index={0}>
             <Grid container spacing={1}>
               <Grid item sm={12} md={12} lg={10} xl={10}>
                 <Paper style={{height: '100%'}}>
-                  <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.25rem'}}>Warp</Typography>
+                  <SectionHead>Warp</SectionHead>
                   <Divider />
                   <Box style={{padding: '0.5rem'}}>
                     <FormRow>
                       <FormRowItem>
-                        <FormInputText type="number" label="EPI/Reed(Inch)" name='warp_reed' value={formData.warp_reed}
+                        <FormInputText type="number" label="EPI/Reed(Inch)" name='warp_reed' value={fieldsData.warp_reed}
                           errorMsg={formDataErr.warp_reed} onChange={onWarpTextChange} fullWidth/>
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Width/Panna(Inch)" name='warp_panna' value={formData.warp_panna}
+                        <FormInputText type="number" label="Width/Panna(Inch)" name='warp_panna' value={fieldsData.warp_panna}
                           errorMsg={formDataErr.warp_panna} onChange={onWarpTextChange} />
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Extra Reed Space(Inch)" name='warp_reed_space' value={formData.warp_reed_space}
+                        <FormInputText type="number" label="Extra Reed Space(Inch)" name='warp_reed_space' value={fieldsData.warp_reed_space}
                           errorMsg={formDataErr.warp_reed_space} onChange={onWarpTextChange} />
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label={`Cut Mark/Lassa (${(_.find(LASSA_UNIT_OPTIONS, (o)=>o.value==settings.lassa_unit)||{label: ''}).label})`} name='warp_lassa' value={formData.warp_lassa}
+                        <FormInputText type="number" label={`Cut Mark/Lassa (${(_.find(LASSA_UNIT_OPTIONS, (o)=>o.value==settings.lassa_unit)||{label: ''}).label})`} name='warp_lassa' value={fieldsData.warp_lassa}
                           errorMsg={formDataErr.warp_lassa} onChange={onWarpTextChange} />
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Cut Length/L to L(Meter)" name='warp_ltol' value={formData.warp_ltol}
+                        <FormInputText type="number" label="Cut Length/L to L(Meter)" name='warp_ltol' value={fieldsData.warp_ltol}
                           errorMsg={formDataErr.warp_ltol} onChange={onWarpTextChange} />
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Ironing/Sizing Wt. increase(%)" name='warp_iron_wt' value={formData.warp_iron_wt}
+                        <FormInputText type="number" label="Ironing/Sizing Wt. increase(%)" name='warp_iron_wt' value={fieldsData.warp_iron_wt}
                           errorMsg={formDataErr.warp_iron_wt} onChange={onWarpTextChange} />
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Cramp(%)" name='warp_cramp' value={formData.warp_cramp}
+                        <FormInputText type="number" label="Cramp(%)" name='warp_cramp' value={fieldsData.warp_cramp}
                           errorMsg={formDataErr.warp_cramp} onChange={onWarpTextChange} readOnly/>
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Total ends" name='warp_total_ends' value={round(formData.warp_total_ends)}
+                        <FormInputText type="number" label="Total ends" name='warp_total_ends' value={round(fieldsData.warp_total_ends)}
                           readOnly />
                       </FormRowItem>
                     </FormRow>
                   </Box>
-                  <DataGrid columns={warpCols} data={formData.warps || []} showFooter={true} tdClassName={classes.inputGridTd}
+                  <DataGrid columns={warpCols} data={fieldsData.warps || []} showFooter={true} tdClassName={classes.inputGridTd}
                     noRowsMessage="Click on Add warp"/>
                   <Button variant="outlined" color="primary" onClick={()=>{
-                    formDispatch({
+                    fieldsDispatch({
                       type: 'add_grid_row',
                       path: 'warps',
                       value: getDefaultRow(warpCols),
@@ -826,40 +880,40 @@ function Calculator({open, onClose, onSave, data, settings}) {
                     });
                   }}>Add warp</Button>
                   <Divider style={{marginTop: '0.5rem'}} />
-                  <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.25rem'}}>Weft</Typography>
+                  <SectionHead>Weft</SectionHead>
                   <Divider />
                   <Box style={{padding: '0.5rem'}}>
                     <FormRow>
                       <FormRowItem>
-                        <FormInputText type="number" label="Meter" name='weft_meter' value={formData.weft_meter}
+                        <FormInputText type="number" label="Meter" name='weft_meter' value={fieldsData.weft_meter}
                           errorMsg={formDataErr.weft_meter} readOnly/>
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Width/Panna(Inch)" name='weft_panna' value={formData.weft_panna}
+                        <FormInputText type="number" label="Width/Panna(Inch)" name='weft_panna' value={fieldsData.weft_panna}
                           errorMsg={formDataErr.panna} onChange={onWeftTextChange} />
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Exta Reed Space(Inch)" name='weft_reed_space' value={formData.weft_reed_space}
+                        <FormInputText type="number" label="Exta Reed Space(Inch)" name='weft_reed_space' value={fieldsData.weft_reed_space}
                           errorMsg={formDataErr.reed_space} onChange={onWeftTextChange} />
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="PPI(Pick)" name='weft_pick' value={formData.weft_pick}
+                        <FormInputText type="number" label="PPI(Pick)" name='weft_pick' value={fieldsData.weft_pick}
                           errorMsg={formDataErr.weft_pick} onChange={onWeftTextChange} />
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Job Rate(paise)" name='weft_job_rate' value={formData.weft_job_rate}
+                        <FormInputText type="number" label="Job Rate(paise)" name='weft_job_rate' value={fieldsData.weft_job_rate}
                           errorMsg={formDataErr.weft_job_rate} onChange={onWeftTextChange} />
                       </FormRowItem>
                       <FormRowItem>
-                        <FormInputText type="number" label="Weaving charges" name='weaving_charges' value={formData.weaving_charges}
+                        <FormInputText type="number" label="Weaving charges" name='weaving_charges' value={fieldsData.weaving_charges}
                           readOnly />
                       </FormRowItem>
                     </FormRow>
                   </Box>
-                  <DataGrid columns={weftCols} data={formData.wefts || []} showFooter={true} tdClassName={classes.inputGridTd}
+                  <DataGrid columns={weftCols} data={fieldsData.wefts || []} showFooter={true} tdClassName={classes.inputGridTd}
                     noRowsMessage="Click on Add weft"/>
                   <Button variant="outlined" color="primary" onClick={()=>{
-                    formDispatch({
+                    fieldsDispatch({
                       type: 'add_grid_row',
                       path: 'wefts',
                       value: getDefaultRow(weftCols),
@@ -873,44 +927,44 @@ function Calculator({open, onClose, onSave, data, settings}) {
               </Grid>
               <Grid item sm={12} md={12} lg={2} xl={2}>
                 <Paper style={{height: '100%'}}>
-                  <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.25rem'}}>Summary(Kg)</Typography>
+                  <SectionHead>Summary(Kg)</SectionHead>
                   <Divider />
                   <Box style={{padding: '0.5rem'}}>
-                    <FormInputText type="number" label="Warp weight" name='warp_weight' value={formData.warp_weight} readOnly />
+                    <FormInputText type="number" label="Warp weight" name='warp_weight' value={fieldsData.warp_weight} readOnly />
                     <Box style={{marginTop: '0.5rem'}}>
                       <FormInputText type="number" label="Weft weight" name='weft_weight'
-                        value={formData.weft_weight} readOnly />
+                        value={fieldsData.weft_weight} readOnly />
                     </Box>
                     <Box style={{marginTop: '0.5rem'}}>
                       <FormInputText type="number" label="Total weight (GLM)" name='total_weight_glm'
-                        value={formData.total_weight_glm} readOnly highlight/>
+                        value={fieldsData.total_weight_glm} readOnly highlight/>
                     </Box>
                     <Box style={{marginTop: '0.5rem'}}>
                       <FormInputText type="number" label="Total weight (GSM)" name='total_weight_gsm'
-                        value={formData.total_weight_gsm} readOnly highlight/>
+                        value={fieldsData.total_weight_gsm} readOnly highlight/>
                     </Box>
                     <Box style={{marginTop: '0.5rem'}}>
                       <FormInputText type="number" label="Warp weight w/wastage" name='warp_weight_wastage'
-                        value={formData.warp_weight_wastage} readOnly />
+                        value={fieldsData.warp_weight_wastage} readOnly />
                     </Box>
                     <Box style={{marginTop: '0.5rem'}}>
                       <FormInputText type="number" label="Weft weight w/wastage" name='weft_weight_wastage'
-                        value={formData.weft_weight_wastage} readOnly />
+                        value={fieldsData.weft_weight_wastage} readOnly />
                     </Box>
                     <Box style={{marginTop: '0.5rem'}}>
                       <FormInputText type="number" label="Total weight w/wastage" name='total_weight_glm_wastage'
-                        value={formData.total_weight_glm_wastage} readOnly highlight/>
+                        value={fieldsData.total_weight_glm_wastage} readOnly highlight/>
                     </Box>
                     <Box style={{marginTop: '0.5rem'}}>
                       <FormInputText type="number" label="Production Cost" name='prod_cost'
-                        value={formData.prod_cost} readOnly highlight/>
+                        value={fieldsData.prod_cost} readOnly highlight/>
                     </Box>
                   </Box>
                 </Paper>
               </Grid>
             </Grid>
             <Paper style={{marginTop: '0.5rem'}}>
-              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.25rem'}}>Cost breakup</Typography>
+              <SectionHead>Cost breakup</SectionHead>
               <Divider />
               <Box style={{padding: '0.5rem'}}>
                 <Grid container spacing={1}>
@@ -930,11 +984,11 @@ function Calculator({open, onClose, onSave, data, settings}) {
                           <FormInfo>
                             <Box p={1}>
                               <TableLayout>
-                                {formData.breakups?.prod_cost && Object.keys(formData.breakups.prod_cost).map((b)=>{
+                                {fieldsData.breakups?.prod_cost && Object.keys(fieldsData.breakups.prod_cost).map((b)=>{
                                   return (
                                     <TableLayoutRow>
                                       <TableLayoutCell>{b}</TableLayoutCell>
-                                      <TableLayoutCell>{formData.breakups.prod_cost[b]}</TableLayoutCell>
+                                      <TableLayoutCell>{fieldsData.breakups.prod_cost[b]}</TableLayoutCell>
                                     </TableLayoutRow>
                                   )
                                 })}
@@ -948,79 +1002,79 @@ function Calculator({open, onClose, onSave, data, settings}) {
                         <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
                         <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
                         <TableLayoutCell className={classes.borderBottom}>
-                          <FormInputText type="number" name='prod_cost' value={formData.prod_cost}
+                          <FormInputText type="number" name='prod_cost' value={fieldsData.prod_cost}
                             readOnly />
                         </TableLayoutCell>
                       </TableLayoutRow>
                       <TableLayoutRow>
                         <TableLayoutCell>Gray market price</TableLayoutCell>
                         <TableLayoutCell>
-                          <FormInputText type="number" name='gray_market_price' value={formData.gray_market_price}
+                          <FormInputText type="number" name='gray_market_price' value={fieldsData.gray_market_price}
                             onChange={onRateChange} />
                         </TableLayoutCell>
                         <TableLayoutCell>
-                          <FormInputText type="number" name='gray_market_price' value={formData.gray_market_price} readOnly />
+                          <FormInputText type="number" name='gray_market_price' value={fieldsData.gray_market_price} readOnly />
                         </TableLayoutCell>
                       </TableLayoutRow>
                       <TableLayoutRow>
                         <TableLayoutCell>Brokerage(%)</TableLayoutCell>
                         <TableLayoutCell>
-                          <FormInputText type="number" name='gray_brokerage' value={formData.gray_brokerage}
+                          <FormInputText type="number" name='gray_brokerage' value={fieldsData.gray_brokerage}
                             onChange={onRateChange} />
                         </TableLayoutCell>
                         <TableLayoutCell>
-                          <FormInputText type="number" name='gray_brokerage_calc' value={formData.gray_brokerage_calc} readOnly />
+                          <FormInputText type="number" name='gray_brokerage_calc' value={fieldsData.gray_brokerage_calc} readOnly />
                         </TableLayoutCell>
                       </TableLayoutRow>
                       <TableLayoutRow>
                         <TableLayoutCell>Interest(%)</TableLayoutCell>
                         <TableLayoutCell>
-                          <FormInputText type="number" name='gray_interest' value={formData.gray_interest}
+                          <FormInputText type="number" name='gray_interest' value={fieldsData.gray_interest}
                             onChange={onRateChange} />
                         </TableLayoutCell>
                         <TableLayoutCell>
-                          <FormInputText type="number" name='gray_interest_calc' value={formData.gray_interest_calc} readOnly />
+                          <FormInputText type="number" name='gray_interest_calc' value={fieldsData.gray_interest_calc} readOnly />
                         </TableLayoutCell>
                       </TableLayoutRow>
                       <TableLayoutRow>
                         <TableLayoutCell>Cash discount(%)</TableLayoutCell>
                         <TableLayoutCell>
-                          <FormInputText type="number" name='gray_cashdisc' value={formData.gray_cashdisc}
+                          <FormInputText type="number" name='gray_cashdisc' value={fieldsData.gray_cashdisc}
                             onChange={onRateChange} />
                         </TableLayoutCell>
                         <TableLayoutCell>
-                          <FormInputText type="number" name='gray_cashdisc_calc' value={formData.gray_cashdisc_calc} readOnly />
+                          <FormInputText type="number" name='gray_cashdisc_calc' value={fieldsData.gray_cashdisc_calc} readOnly />
                         </TableLayoutCell>
                       </TableLayoutRow>
                       <TableLayoutRow>
                         <TableLayoutCell>Others(%)</TableLayoutCell>
                         <TableLayoutCell>
-                          <FormInputText type="number" name='gray_others' value={formData.gray_others}
+                          <FormInputText type="number" name='gray_others' value={fieldsData.gray_others}
                             onChange={onRateChange} />
                         </TableLayoutCell>
                         <TableLayoutCell>
-                          <FormInputText type="number" name='gray_others_calc' value={formData.gray_others_calc} readOnly />
+                          <FormInputText type="number" name='gray_others_calc' value={fieldsData.gray_others_calc} readOnly />
                         </TableLayoutCell>
                       </TableLayoutRow>
                       <TableLayoutRow>
                         <TableLayoutCell className={classes.borderTop}></TableLayoutCell>
                         <TableLayoutCell className={clsx(classes.borderTop, classes.alignRight)}>Total</TableLayoutCell>
                         <TableLayoutCell className={classes.borderTop}>
-                          <FormInputText type="number" name='gray_total' value={formData.gray_total} readOnly highlight/>
+                          <FormInputText type="number" name='gray_total' value={fieldsData.gray_total} readOnly highlight/>
                         </TableLayoutCell>
                       </TableLayoutRow>
                       <TableLayoutRow>
                         <TableLayoutCell></TableLayoutCell>
                         <TableLayoutCell className={classes.alignRight}>Profit(%)</TableLayoutCell>
                         <TableLayoutCell>
-                          <FormInputText type="number" name='gray_profit' value={formData.gray_profit} readOnly profit/>
+                          <FormInputText type="number" name='gray_profit' value={fieldsData.gray_profit} readOnly profit/>
                         </TableLayoutCell>
                       </TableLayoutRow>
                       <TableLayoutRow>
                         <TableLayoutCell></TableLayoutCell>
                         <TableLayoutCell className={classes.alignRight}>Reverse Job Rate(Paise)</TableLayoutCell>
                         <TableLayoutCell>
-                          <FormInputText type="number" name='gray_revjobrate' value={formData.gray_revjobrate} readOnly highlight/>
+                          <FormInputText type="number" name='gray_revjobrate' value={fieldsData.gray_revjobrate} readOnly highlight/>
                         </TableLayoutCell>
                       </TableLayoutRow>
                     </TableLayout>
@@ -1034,7 +1088,7 @@ function Calculator({open, onClose, onSave, data, settings}) {
                         </TableLayoutCell>
                       </TableLayoutRow>
                       {[...new Array(marginTableRows)].map((v, irow)=>{
-                        let mt = formData.margin_table || [];
+                        let mt = fieldsData.margin_table || [];
                         return (
                           <TableLayoutRow>
                             <TableLayoutCell className={classes.mtPerct}>{0+irow+1}%</TableLayoutCell>
@@ -1076,97 +1130,97 @@ function Calculator({open, onClose, onSave, data, settings}) {
                       <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
                       <TableLayoutCell className={classes.borderBottom}></TableLayoutCell>
                       <TableLayoutCell className={classes.borderBottom}>
-                        <FormInputText type="number" name='prod_cost' value={formData.prod_cost}
+                        <FormInputText type="number" name='prod_cost' value={fieldsData.prod_cost}
                           readOnly/>
                       </TableLayoutCell>
                       <TableLayoutCell className={classes.borderBottom}>
-                        <FormInputText type="number" name='fin_gray_price' value={formData.fin_gray_price}
+                        <FormInputText type="number" name='fin_gray_price' value={fieldsData.fin_gray_price}
                           onChange={onRateChange} />
                       </TableLayoutCell>
                     </TableLayoutRow>
                     <TableLayoutRow>
                       <TableLayoutCell>Process Charge(Rs.)</TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_process_charge' value={formData.fin_process_charge}
+                        <FormInputText type="number" name='fin_process_charge' value={fieldsData.fin_process_charge}
                           onChange={onRateChange} />
                       </TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_process_charge' value={formData.fin_process_charge} readOnly/>
+                        <FormInputText type="number" name='fin_process_charge' value={fieldsData.fin_process_charge} readOnly/>
                       </TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_process_charge' value={formData.fin_process_charge} readOnly/>
+                        <FormInputText type="number" name='fin_process_charge' value={fieldsData.fin_process_charge} readOnly/>
                       </TableLayoutCell>
                     </TableLayoutRow>
                     <TableLayoutRow>
                       <TableLayoutCell>
-                        <FormInputSelect name='fin_elongshrink_opt' value={formData.fin_elongshrink_opt} options={[
+                        <FormInputSelect name='fin_elongshrink_opt' value={fieldsData.fin_elongshrink_opt} options={[
                           {label:'Elongation %', value: 'elongation'},
                           {label:'Shrinkage %', value: 'shrinkage'},
                         ]} onChange={onRateChange} />
                       </TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_elongshrink' value={formData.fin_elongshrink}
+                        <FormInputText type="number" name='fin_elongshrink' value={fieldsData.fin_elongshrink}
                           onChange={onRateChange} fullWidth />
                       </TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_prod_elongshrink' value={formData.fin_prod_elongshrink} readOnly/>
+                        <FormInputText type="number" name='fin_prod_elongshrink' value={fieldsData.fin_prod_elongshrink} readOnly/>
                       </TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_gray_elongshrink' value={formData.fin_gray_elongshrink} readOnly/>
+                        <FormInputText type="number" name='fin_gray_elongshrink' value={fieldsData.fin_gray_elongshrink} readOnly/>
                       </TableLayoutCell>
                     </TableLayoutRow>
                     <TableLayoutRow>
                       <TableLayoutCell>Wastage(%)</TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_wastage' value={formData.fin_wastage}
+                        <FormInputText type="number" name='fin_wastage' value={fieldsData.fin_wastage}
                           onChange={onRateChange} fullWidth />
                       </TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_prod_wastage' value={formData.fin_prod_wastage}
+                        <FormInputText type="number" name='fin_prod_wastage' value={fieldsData.fin_prod_wastage}
                           readOnly/>
                       </TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_gray_wastage' value={formData.fin_gray_wastage}
+                        <FormInputText type="number" name='fin_gray_wastage' value={fieldsData.fin_gray_wastage}
                           readOnly/>
                       </TableLayoutCell>
                     </TableLayoutRow>
                     <TableLayoutRow>
                       <TableLayoutCell>Packing Charges(Rs)</TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_packing' value={formData.fin_packing}
+                        <FormInputText type="number" name='fin_packing' value={fieldsData.fin_packing}
                           onChange={onRateChange} fullWidth />
                       </TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_packing' value={formData.fin_packing}
+                        <FormInputText type="number" name='fin_packing' value={fieldsData.fin_packing}
                           readOnly/>
                       </TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_packing' value={formData.fin_packing}
+                        <FormInputText type="number" name='fin_packing' value={fieldsData.fin_packing}
                           readOnly/>
                       </TableLayoutCell>
                     </TableLayoutRow>
                     <TableLayoutRow>
                       <TableLayoutCell>Others(Rs)</TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_others' value={formData.fin_others}
+                        <FormInputText type="number" name='fin_others' value={fieldsData.fin_others}
                           onChange={onRateChange} fullWidth />
                       </TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_others' value={formData.fin_others} readOnly/>
+                        <FormInputText type="number" name='fin_others' value={fieldsData.fin_others} readOnly/>
                       </TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_others' value={formData.fin_others} readOnly/>
+                        <FormInputText type="number" name='fin_others' value={fieldsData.fin_others} readOnly/>
                       </TableLayoutCell>
                     </TableLayoutRow>
                     <TableLayoutRow>
                       <TableLayoutCell className={classes.borderTop}></TableLayoutCell>
                       <TableLayoutCell className={clsx(classes.borderTop, classes.alignRight)}>Total</TableLayoutCell>
                       <TableLayoutCell className={classes.borderTop}>
-                        <FormInputText type="number" name='fin_prod_total' value={formData.fin_prod_total}
+                        <FormInputText type="number" name='fin_prod_total' value={fieldsData.fin_prod_total}
                           readOnly highlight />
                       </TableLayoutCell>
                       <TableLayoutCell className={classes.borderTop}>
-                        <FormInputText type="number" name='fin_gray_total' value={formData.fin_gray_total}
+                        <FormInputText type="number" name='fin_gray_total' value={fieldsData.fin_gray_total}
                           readOnly highlight/>
                       </TableLayoutCell>
                     </TableLayoutRow>
@@ -1179,15 +1233,15 @@ function Calculator({open, onClose, onSave, data, settings}) {
                     <TableLayoutRow>
                       <TableLayoutCell style={{verticaAlign: 'bottom'}}>Finish Fabric Market Price</TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_market_price' value={formData.fin_market_price}
+                        <FormInputText type="number" name='fin_market_price' value={fieldsData.fin_market_price}
                           onChange={onRateChange} fullWidth />
                       </TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_prod_profit' value={formData.fin_prod_profit}
+                        <FormInputText type="number" name='fin_prod_profit' value={fieldsData.fin_prod_profit}
                           readOnly profit/>
                       </TableLayoutCell>
                       <TableLayoutCell>
-                        <FormInputText type="number" name='fin_gray_profit' value={formData.fin_gray_profit}
+                        <FormInputText type="number" name='fin_gray_profit' value={fieldsData.fin_gray_profit}
                           readOnly profit/>
                       </TableLayoutCell>
                     </TableLayoutRow>
@@ -1198,15 +1252,15 @@ function Calculator({open, onClose, onSave, data, settings}) {
           </TabPanel>
           <TabPanel value={tabvalue} index={2}>
             <Paper style={{height: '100%'}}>
-              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.25rem'}}>Warp required</Typography>
+              <SectionHead>Warp required</SectionHead>
               <Divider />
-              <DataGrid columns={wpWarpCols} data={formData.wpWarps || []} tdClassName={classes.inputGridTd} />
-              <Typography color="secondary" variant="h6" style={{textAlign: 'center', padding: '0.25rem'}}>Weft required</Typography>
+              <DataGrid columns={wpWarpCols} data={fieldsData.wpWarps || []} tdClassName={classes.inputGridTd} />
+              <SectionHead>Weft required</SectionHead>
               <Divider />
               <Box style={{padding: '0.5rem'}}>
                 <FormRow>
                   <FormRowItem>
-                    <FormInputText type="number" label="Fabric Meter" name='wp_fabric_meter' value={formData.wp_fabric_meter}
+                    <FormInputText type="number" label="Fabric Meter" name='wp_fabric_meter' value={fieldsData.wp_fabric_meter}
                       onChange={onWpWeftTextChange}/>
                   </FormRowItem>
                   <FormRowItem></FormRowItem>
@@ -1216,30 +1270,27 @@ function Calculator({open, onClose, onSave, data, settings}) {
                   <FormRowItem></FormRowItem>
                 </FormRow>
               </Box>
-              <DataGrid columns={wpWeftCols} data={formData.wpWefts || []} tdClassName={classes.inputGridTd} />
+              <DataGrid columns={wpWeftCols} data={fieldsData.wpWefts || []} tdClassName={classes.inputGridTd} />
             </Paper>
           </TabPanel>
-        </Box>
+        </Box>, [fieldsData, tabvalue])}
         <Box display="none">
-          <PrintPage formData={formData} printRef={reportRef} warpCols={warpCols} weftCols={weftCols}/>
+          <PrintPage fieldsData={fieldsData} printRef={reportRef} warpCols={warpCols} weftCols={weftCols}/>
         </Box>
 
       </DialogContent>
       <DialogActions style={{justifyContent: 'flex-start'}}>
-        <Button variant="contained" onClick={()=>{
-          onSave(editMode ? false : true, formData);
-        }} color="primary" disabled={!Boolean(formData.name)}>Save</Button>
-        <Button variant="contained" onClick={()=>{
-          onSave(true, formData);
-        }} color="primary" disabled={!Boolean(formData.name)}>Copy and Save</Button>
+        <Button variant="contained" onClick={()=>onSave()} color="primary" disabled={!Boolean(otherData.name)}>Save</Button>
+        <Button variant="contained" onClick={()=>onSave(true)} color="primary" disabled={!Boolean(otherData.name) || !Boolean(otherData.id)}>Copy and Save</Button>
+        <Button variant="contained" onClick={()=>onSave(false, true)} color="primary" disabled={!Boolean(otherData.name)}>Save and Close</Button>
         <ReactToPrint
           trigger={()=><Button color="primary" variant="outlined" style={{marginLeft: '0.5rem'}}>Print</Button>}
           content={()=>reportRef.current}
           pageStyle={pageStyle}
-          documentTitle={'Costing-'+formData.name}
+          documentTitle={'Costing-'+fieldsData.name}
         />
         {/* <Button variant="outlined" color="primary" style={{marginLeft: '0.5rem'}} disabled>Print(Coming soon)</Button> */}
-        <Button variant="outlined" color="primary" onClick={onClose} style={{marginLeft: '0.5rem'}}>Cancel</Button>
+        <Button variant="outlined" color="primary" onClick={()=>onClose(otherData)} style={{marginLeft: '0.5rem'}}>Close</Button>
       </DialogActions>
     </Dialog>
   )
@@ -1262,7 +1313,7 @@ const useReportStyles = makeStyles((theme)=>({
   },
 }));
 
-function PrintPage({printRef, formData, warpCols, weftCols}) {
+function PrintPage({printRef, fieldsData, warpCols, weftCols}) {
   const classes = useReportStyles();
   return (
     <Box ref={printRef} className={classes.page}>
@@ -1272,7 +1323,7 @@ function PrintPage({printRef, formData, warpCols, weftCols}) {
       {/* <Divider /> */}
       <Box borderTop={1}/>
       <Box p={1}>
-        <PrintField label="Quality Name" value={formData.name} />
+        <PrintField label="Quality Name" value={fieldsData.name} />
       </Box>
       <Box borderTop={1}/>
       <Grid container>
@@ -1282,35 +1333,35 @@ function PrintPage({printRef, formData, warpCols, weftCols}) {
               <h3>Warp</h3>
             </Box>
             <Box display="flex" flexWrap="wrap">
-              <PrintField label="Reed Name" value={formData.warp_reed} />
-              <PrintField margin label="Panna" value={formData.warp_panna} />
-              <PrintField margin label="Reed space" value={formData.warp_reed_space} />
-              <PrintField margin label="Lassa" value={formData.warp_lassa} />
-              <PrintField margin label="L to L" value={formData.warp_ltol} />
-              <PrintField margin label="Total ends" value={formData.warp_total_ends} />
+              <PrintField label="Reed Name" value={fieldsData.warp_reed} />
+              <PrintField margin label="Panna" value={fieldsData.warp_panna} />
+              <PrintField margin label="Reed space" value={fieldsData.warp_reed_space} />
+              <PrintField margin label="Lassa" value={fieldsData.warp_lassa} />
+              <PrintField margin label="L to L" value={fieldsData.warp_ltol} />
+              <PrintField margin label="Total ends" value={fieldsData.warp_total_ends} />
             </Box>
-            <DataGrid columns={warpCols} data={formData.warps || []} showFooter={true} print={true}/>
+            <DataGrid columns={warpCols} data={fieldsData.warps || []} showFooter={true} print={true}/>
           </Box>
           <Box>
             <Box textAlign="center">
               <h3>Weft</h3>
             </Box>
             <Box display="flex" flexWrap="wrap">
-              <PrintField label="Meter" value={formData.weft_meter} />
-              <PrintField margin label="Panna" value={formData.weft_panna} />
-              <PrintField margin label="Reed space" value={formData.weft_reed_space} />
-              <PrintField margin label="Pick" value={formData.weft_pick} />
-              <PrintField margin label="Job rate (paise)" value={formData.weft_job_rate} />
-              <PrintField margin label="Weaving charges" value={formData.weaving_charges} />
+              <PrintField label="Meter" value={fieldsData.weft_meter} />
+              <PrintField margin label="Panna" value={fieldsData.weft_panna} />
+              <PrintField margin label="Reed space" value={fieldsData.weft_reed_space} />
+              <PrintField margin label="Pick" value={fieldsData.weft_pick} />
+              <PrintField margin label="Job rate (paise)" value={fieldsData.weft_job_rate} />
+              <PrintField margin label="Weaving charges" value={fieldsData.weaving_charges} />
             </Box>
-            <DataGrid columns={weftCols} data={formData.wefts || []} showFooter={true} print={true}/>
+            <DataGrid columns={weftCols} data={fieldsData.wefts || []} showFooter={true} print={true}/>
           </Box>
         </Grid>
       </Grid>
       <Divider />
-      <PrintField label="Gross rate" rs={true} value={formData.prod_cost} />
-      <PrintField label="Rate local" rs={true} value={formData.rate_local_rs} />
-      <PrintField label="Rate out" rs={true} value={formData.rate_out_rs} />
+      <PrintField label="Gross rate" rs={true} value={fieldsData.prod_cost} />
+      <PrintField label="Rate local" rs={true} value={fieldsData.rate_local_rs} />
+      <PrintField label="Rate out" rs={true} value={fieldsData.rate_out_rs} />
       <Box position="fixed" bottom="0" left="0" right="0" textAlign="center" fontSize="0.6em">Generated by Costing software by team Yantra - yantra.contact@gmail.com</Box>
     </Box>
   )

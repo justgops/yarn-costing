@@ -4,12 +4,26 @@ const db = require('../db/models');
 
 router.get('/', function(req, res, next) {
   db.Qualities.findAll({
+    attributes: ['id', 'name', 'notes', 'agentId', 'partyId'],
     raw: true,
   }).then((data)=>{
-    data.forEach((row)=>{
-      row.data = JSON.parse(row.data);
-    });
     res.status(200).json(data);
+  })
+  .catch(err => {
+    console.error('Unable to connect to the database:', err);
+    next(err);
+  });
+});
+
+router.get('/data/:id', function(req, res, next) {
+  db.Qualities.findOne({
+    raw: true,
+    where: {
+      id: req.params.id,
+    },
+  }).then((row)=>{
+    row.data = JSON.parse(row.data);
+    res.status(200).json(row);
   })
   .catch(err => {
     console.error('Unable to connect to the database:', err);
@@ -33,10 +47,13 @@ router.delete('/:id', function(req, res) {
 router.post('/', function(req, res) {
   let reqJson = req.body;
   db.Qualities.create({
-	  data: JSON.stringify(reqJson),
+    name: reqJson.name,
+    notes: reqJson.notes,
+	  data: JSON.stringify(reqJson.data),
+    agentId: reqJson.agentId,
+    partyId: reqJson.partyId,
   }).then((result)=>{
-    result.dataValues.data = JSON.parse(result.dataValues.data);
-    res.status(200).json(result);
+    res.status(200).json(result.id);
   }).catch((error)=>{
     res.status(500).json({message: error});
   });
@@ -44,8 +61,13 @@ router.post('/', function(req, res) {
 
 router.put('/:id', function(req, res) {
   let id = req.params.id;
+  let reqJson = req.body;
   db.Qualities.update({
-    data: JSON.stringify(req.body),
+    name: reqJson.name,
+    notes: reqJson.notes,
+	  data: JSON.stringify(reqJson.data),
+    agentId: reqJson.agentId,
+    partyId: reqJson.partyId,
   },{
     where: {
       id: id,

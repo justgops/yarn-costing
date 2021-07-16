@@ -14,7 +14,11 @@ module.exports = (sequelize, DataTypes) => {
     }
   };
   Qualities.init({
-    data: DataTypes.STRING
+    data: DataTypes.STRING,
+    name: DataTypes.STRING,
+    notes: DataTypes.STRING,
+    agentId: DataTypes.INTEGER,
+    partyId: DataTypes.INTEGER,
   }, {
     sequelize,
     modelName: 'Qualities',

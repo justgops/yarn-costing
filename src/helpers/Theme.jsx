@@ -6,10 +6,14 @@ const defaultTheme = createMuiTheme();
 const globalTheme = createMuiTheme({
     palette: {
         primary: {
-            main: '#0089ef',
+            main: '#016FB9',
+            main: '#2364AA',
+            light: '#cbe3f5',
+            dark: '#064879',
         },
         secondary: {
-            main: '#e53935',
+            main: '#B0413E',
+            light: '#ffd8d7',
         },
         info: {
             main: '#f18009'
@@ -39,7 +43,10 @@ export const theme = createMuiTheme({
             variant: 'outlined',
         },
         MuiButton: {
-            size: 'medium',
+            size: 'small',
+            disableTouchRipple: true,
+        },
+        MuiToggleButton: {
             disableTouchRipple: true,
         },
         MuiIconButton: {
@@ -55,6 +62,9 @@ export const theme = createMuiTheme({
             root: {
                 minHeight: 0,
             },
+            flexContainer: {
+                padding: defaultTheme.spacing(0.5),
+            }
         },
         MuiTab: {
             root: {
@@ -62,33 +72,48 @@ export const theme = createMuiTheme({
                 [defaultTheme.breakpoints.up('sm')]: {
                     minWidth: '80px',
                 },
-                fontWeight: 'bold'
             },
             textColorInherit: {
                 textTransform: 'none',
                 opacity: 1,
             },
-            "&$selected": {
-                backgroundColor: globalTheme.palette.primary.main,
-            }
         },
         MuiButton: {
             root: {
                 textTransform: 'none'
             }
         },
+        MuiToggleButtonGroup: {
+            root: {
+                margin: globalTheme.spacing(0.5, 0),
+            }
+        },
+        MuiToggleButton: {
+            root: {
+                textTransform: 'none',
+                color: globalTheme.palette.primary.main,
+                borderColor: globalTheme.palette.primary.main,
+                '&.Mui-selected': {
+                    backgroundColor: globalTheme.palette.primary.main,
+                    color: globalTheme.palette.primary.contrastText,
+                }
+            },
+            sizeSmall: {
+                padding: '3px 9px',
+            },
+        },
         MuiFormLabel: {
             root: {
-                color: defaultTheme.palette.text.primary,
-                fontSize: defaultTheme.typography.fontSize,
+                color: globalTheme.palette.text.primary,
+                fontSize: globalTheme.typography.fontSize,
             },
             asterisk: {
-                color: defaultTheme.palette.error.main,
+                color: globalTheme.palette.error.main,
             }
         },
         MuiToolbar: {
             dense: {
-                minHeight: '42px',
+                minHeight: '34px',
             }
         },
         MuiOutlinedInput: {

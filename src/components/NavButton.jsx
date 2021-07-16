@@ -10,7 +10,7 @@ const NavButton = ({path, ...props}) => {
   });
 
   return (
-    <Button style={{fontSize: theme.typography.fontSize*1.1}}
+    <Button
       color={match ? "secondary" : "primary"} variant="contained" component={RouteLink}
       to={path} disableElevation {...otherProps}>{children}</Button>
   )
