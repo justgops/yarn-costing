@@ -83,6 +83,11 @@ export const theme = createMuiTheme({
                 textTransform: 'none'
             }
         },
+        MuiIconButton: {
+            sizeSmall: {
+                padding: 0,
+            }
+        },
         MuiToggleButtonGroup: {
             root: {
                 margin: globalTheme.spacing(0.5, 0),

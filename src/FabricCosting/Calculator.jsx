@@ -327,8 +327,6 @@ const getCalcReducer = (settings)=>(state, action)=>{
 }
 
 
-
-
 function getGridCols(basePath, fieldsDispatch, postReducer, otherCols, cellClassName, depDetails={}, canDelete=true) {
   let baseCols = [{
     Header: '',
@@ -463,12 +461,14 @@ function Calculator({open, onClose, selId, settings, ...props}) {
         data: fieldsData,
       },
     }).then((res)=>{
-      if(!editMode || copy) {
-        onOtherChange(res.data, 'id');
-      }
       props.setNotification(NOTIFICATION_TYPE.SUCCESS, 'Quality saved successfully');
+      let newOtherData = {...otherData};
+      if(!editMode || copy) {
+        newOtherData.id = res.data;
+        setOtherData(newOtherData);
+      }
       if(close) {
-        onClose(otherData);
+        onClose(newOtherData);
       }
     }).catch((err)=>{
       props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(err));

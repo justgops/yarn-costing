@@ -7,6 +7,8 @@ import Calculator from './Calculator';
 import { BASE_URL, getApi } from '../api';
 import _ from 'lodash';
 import { AddRounded } from '@material-ui/icons';
+import DeleteForeverIcon from '@material-ui/icons/DeleteForever';
+import ConfirmDialog from '../helpers/ConfirmDialog';
 
 const useStyles = makeStyles((theme)=>({
   root: {
@@ -46,6 +48,7 @@ function FabricCosting(props) {
   const [openCalc, setOpenCalc] = useState(false);
   const [selId, setSelId] = useState(null);
   const [qualities, setQualities] = useState([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const homeRef = useRef();
   const apiObj = useMemo(()=>getApi(), []);
   const licExpired = props.activation.is_trial && props.activation.usage_days_left <= 0;
@@ -66,25 +69,12 @@ function FabricCosting(props) {
       Header: '',
       id: 'btn-del',
       width: '30px',
-      // Cell: ({value, row})=>{
-      //   return <Link onClick={()=>{
-      //     if(licExpired) return;
-      //     setSelId(row.original.id);
-      //     setOpenCalc(true);
-      //   }} href="#">{value}</Link>
-      // }
-    },
-    {
-      Header: '',
-      id: 'btn-edit',
-      width: '30px',
-      // Cell: ({value, row})=>{
-      //   return <Link onClick={()=>{
-      //     if(licExpired) return;
-      //     setSelId(row.original.id);
-      //     setOpenCalc(true);
-      //   }} href="#">{value}</Link>
-      // }
+      Cell: ({value, row})=>{
+        return <IconButton><DeleteForeverIcon onClick={()=>{
+          setSelId(row.original.id);
+          setConfirmOpen(true);
+        }} /></IconButton>;
+      }
     },
     {
       Header: 'Name',
@@ -142,6 +132,25 @@ function FabricCosting(props) {
     setOpenCalc(false);
   }
 
+  const deleteQuality = (id)=>{
+    apiObj.delete(
+      BASE_URL.QUALITIES + '/' + id
+    ).then(()=>{
+      props.setNotification(NOTIFICATION_TYPE.SUCCESS, 'Quality delete successfully');
+      setQualities((prevQualities)=>{
+        let qIndx = _.findIndex(qualities, (q)=>q.id == id);
+        if(qIndx > 0) {
+          return [
+            ...prevQualities.slice(0, qIndx),
+            ...prevQualities.slice(qIndx+1),
+          ];
+        }
+      });
+    }).catch((err)=>{
+      props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(err));
+    });
+  };
+
   return (
     <Box>
       <Box className={classes.root} ref={homeRef}>
@@ -161,6 +170,16 @@ function FabricCosting(props) {
         </Box>
       </Box>
       <Calculator open={openCalc} onClose={onClose} selId={selId} />
+      <ConfirmDialog
+        open={confirmOpen}
+        onClose={()=>setConfirmOpen(false)}
+        title={"Delete ?"}
+        content={"Are you sure you want to delete this quality ?"}
+        onConfirm={()=>{
+          deleteQuality(selId);
+          setConfirmOpen(false);
+        }}
+      />
     </Box>
   )
 }

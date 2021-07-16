@@ -20,9 +20,13 @@ const useStyles = makeStyles((theme)=>({
     textAlign: 'left',
     verticalAlign: 'top',
     fontWeight: 'initial',
-    padding: theme.spacing(1),
+    padding: theme.spacing(0.5, 1),
     borderRight: theme.mixins.border,
     borderBottom: theme.mixins.border,
+  },
+  actionCell: {
+    padding: theme.spacing(0.5, 0),
+    textAlign: 'center',
   },
   tableCellLessPad: {
     padding: theme.spacing(0.5),
@@ -86,7 +90,8 @@ export default function DataGrid({
           return (
             <tr {...row.getRowProps()}>
               {row.cells.filter((cell)=>print ? Boolean(cell.column.Print) : true).map(cell => {
-                return <td {...cell.getCellProps()} className={clsx(classes.tableCell, tdClassName)}>{cell.render(print ? 'Print' : 'Cell')}</td>
+                let actionBtn = cell.column?.id.startsWith('btn-');
+                return <td {...cell.getCellProps()} className={clsx(classes.tableCell, actionBtn?classes.actionCell:null, tdClassName)}>{cell.render(print ? 'Print' : 'Cell')}</td>
               })}
             </tr>
           )
