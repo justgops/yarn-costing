@@ -25,6 +25,9 @@ const useStyles = makeStyles((theme)=>({
     borderRight: theme.mixins.border,
     borderBottom: theme.mixins.border,
   },
+  th: {
+    borderBottom: theme.mixins.borderDark,
+  },
   actionCell: {
     padding: theme.spacing(0.25, 0),
     textAlign: 'center',
@@ -79,7 +82,7 @@ export default function DataGrid({
         {headerGroups.map(headerGroup => (
           <tr {...headerGroup.getHeaderGroupProps()}>
             {headerGroup.headers.filter((column)=>print ? Boolean(column.Print) : true).map(column => (
-              <th {...column.getHeaderProps()} className={classes.tableCell}
+              <th {...column.getHeaderProps()} className={clsx(classes.tableCell, classes.th)}
                 style={fixedLayout ? {width: column.width} : {}}>{column.render('Header')}</th>
             ))}
           </tr>

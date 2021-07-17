@@ -37,7 +37,8 @@ export const theme = createMuiTheme({
     },
     mixins: {
         ...globalTheme.mixins,
-        border: '1px solid '+globalTheme.palette.grey[300]
+        border: '1px solid '+globalTheme.palette.grey[300],
+        borderDark: '1px solid '+globalTheme.palette.grey[400],
     },
     props: {
         MuiTextField: {

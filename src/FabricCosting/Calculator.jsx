@@ -881,17 +881,19 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
           </FormRowItem>
         </FormRow>
         <Box display="flex" flexDirection="column" height="100%" style={{minHeight: 0}}>
-          <ToggleButtonGroup size="small" value={tabvalue} exclusive onChange={tabChange}>
-            <ToggleButton value={0}>
-              Gray fabric
-            </ToggleButton>
-            <ToggleButton value={1}>
-              Finish fabric
-            </ToggleButton>
-            <ToggleButton value={2}>
-              Packing
-            </ToggleButton>
-          </ToggleButtonGroup>
+          <Box paddingTop="0.5rem" paddingBottom="0.5rem">
+            <ToggleButtonGroup size="small" value={tabvalue} exclusive onChange={tabChange}>
+              <ToggleButton value={0}>
+                Gray fabric
+              </ToggleButton>
+              <ToggleButton value={1}>
+                Finish fabric
+              </ToggleButton>
+              <ToggleButton value={2}>
+                Packing
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
           <TabPanel value={tabvalue} index={0}>
             <Grid container spacing={1}>
               <Grid item sm={6} md={3} lg={3} xl={10}>
