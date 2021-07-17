@@ -28,6 +28,13 @@ const useStyles = makeStyles((theme)=>({
   th: {
     borderBottom: theme.mixins.borderDark,
   },
+  tr: {
+    '&:hover': {
+      '& td': {
+        backgroundColor: theme.palette.primary.light,
+      }
+    }
+  },
   actionCell: {
     padding: theme.spacing(0.25, 0),
     textAlign: 'center',
@@ -92,7 +99,7 @@ export default function DataGrid({
         {rows.map((row, i) => {
           prepareRow(row)
           return (
-            <tr {...row.getRowProps()}>
+            <tr {...row.getRowProps()} className={classes.tr}>
               {row.cells.filter((cell)=>print ? Boolean(cell.column.Print) : true).map(cell => {
                 let actionBtn = cell.column?.id.startsWith('btn-');
                 return <td {...cell.getCellProps()} className={clsx(classes.tableCell, actionBtn?classes.actionCell:null, tdClassName)}>{cell.render(print ? 'Print' : 'Cell')}</td>
