@@ -1,5 +1,5 @@
 import { Box, Button, IconButton, Link, makeStyles, Modal, OutlinedInput, useTheme } from '@material-ui/core';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { connect } from 'react-redux';
 import DataGrid from '../components/DataGrid';
 import { NOTIFICATION_TYPE, setNotification } from '../store/reducers/notification';
@@ -9,6 +9,7 @@ import _ from 'lodash';
 import { AddRounded } from '@material-ui/icons';
 import DeleteForeverIcon from '@material-ui/icons/DeleteForever';
 import ConfirmDialog from '../helpers/ConfirmDialog';
+import { FormInputSelectSearch, FormInputText, FormRow, FormRowItem } from '../components/FormElements';
 
 const useStyles = makeStyles((theme)=>({
   root: {
@@ -18,10 +19,9 @@ const useStyles = makeStyles((theme)=>({
   },
   searchbar: {
     padding: theme.spacing(1),
-    display: 'flex',
   },
   gridarea: {
-    padding: theme.spacing(1),
+    padding: theme.spacing(0, 1),
     flexGrow: 1,
   }
 }));
@@ -98,17 +98,18 @@ function FabricCosting(props) {
     },
     {
       Header: 'Agent',
+      accessor: 'agentId',
       width: '20%',
-      accessor: (originalRow)=>{
-        return (_.find(agentOpts, (e)=>e.value==originalRow.agentId)||{}).label;
+      Cell: ({value})=>{
+        return <span>{(_.find(agentOpts, (e)=>e.value==value)||{}).label}</span>;
       },
     },
     {
       Header: 'Party',
       accessor: 'partyId',
       width: '20%',
-      accessor: (originalRow)=>{
-        return (_.find(partyOpts, (e)=>e.value==originalRow.partyId)||{}).label;
+      Cell: ({value})=>{
+        return <span>{(_.find(partyOpts, (e)=>e.value==value)||{}).label}</span>;
       },
     },{
       Header: 'Notes',
@@ -118,7 +119,20 @@ function FabricCosting(props) {
     },
   ], [licExpired, agentOpts, partyOpts]);
 
-  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState({});
+
+  const onFilterChange = useCallback((e, name) => {
+    let value = e;
+    if(e && e.target) {
+      name = e.target.name;
+      value = e.target.value;
+    }
+
+    setFilter((prevData)=>({
+      ...prevData,
+      [name]: value,
+    }));
+  });
 
   const onClose = (otherData)=>{
     if(otherData?.id) {
@@ -154,28 +168,65 @@ function FabricCosting(props) {
             ...prevQualities.slice(qIndx+1),
           ];
         }
+        return prevQualities;
       });
     }).catch((err)=>{
       props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(err));
     });
   };
 
+  let filterObj = [];
+  (filter.text && filter.text.trim() != '') && filterObj.push({
+    id: 'name', value: filter.text
+  });
+  filter.agentId && filterObj.push({
+    id: 'agentId', value: filter.agentId
+  });
+  filter.partyId && filterObj.push({
+    id: 'partyId', value: filter.partyId
+  });
+
   return (
     <Box>
       <Box className={classes.root} ref={homeRef}>
         <Box className={classes.searchbar}>
-          <OutlinedInput value={search} onChange={(e)=>{setSearch(e.target.value)}} style={{minWidth: '20%'}} placeholder="Search quality"/>
-          <Button variant="contained" color="primary" onClick={()=>{
-              setSelId(null);
-              setOpenCalc(true);
-            }} style={{marginLeft: '0.5rem'}}
-            disabled={licExpired}
-            startIcon={<AddRounded />}
-          >Add new quality</Button>
+          <FormRow>
+            <FormRowItem>
+              <FormInputText autoFocus label="Search name" name='text' value={filter.text} onChange={onFilterChange} />
+            </FormRowItem>
+            <FormRowItem>
+              <FormInputSelectSearch label="Agent" name='agentId' options={agentOpts} isClearable={true}
+                value={_.find(agentOpts, (e)=>e.value == filter.agentId)}
+                onChange={(value)=>{
+                  onFilterChange(value?.value, 'agentId');
+                }}
+              />
+            </FormRowItem>
+            <FormRowItem>
+              <FormInputSelectSearch label="Party" name='partyId' options={partyOpts} isClearable={true}
+                value={_.find(partyOpts, (e)=>e.value == filter.partyId)}
+                onChange={(value)=>{
+                  onFilterChange(value?.value, 'partyId');
+                }}
+              />
+            </FormRowItem>
+            <FormRowItem>
+            </FormRowItem>
+          </FormRow>
+          <Box style={{marginTop: '0.5rem'}}>
+            <Button variant="contained" color="primary" onClick={()=>{
+                setSelId(null);
+                setOpenCalc(true);
+              }}
+              disableElevation
+              disabled={licExpired}
+              startIcon={<AddRounded />}
+            >Add new quality</Button>
+          </Box>
         </Box>
         <Box className={classes.gridarea}>
-          <DataGrid columns={columns} data={qualities} filterText={search} fixedLayout={true}
-            noRowsMessage="Click on add new quality"/>
+          <DataGrid columns={columns} data={qualities} fixedLayout={true} noRowsMessage="Click on add new quality"
+            filterObj={filterObj}/>
         </Box>
       </Box>
       <Calculator open={openCalc} onClose={onClose} selId={selId} agentOpts={agentOpts} partyOpts={partyOpts}/>

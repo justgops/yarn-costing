@@ -1,6 +1,6 @@
 import { makeStyles } from '@material-ui/core'
 import React, { useEffect } from 'react'
-import { useFlexLayout, useGlobalFilter, useTable } from 'react-table';
+import { useFilters, useFlexLayout, useGlobalFilter, useTable } from 'react-table';
 import clsx from 'clsx';
 import { Children } from 'react';
 
@@ -51,7 +51,7 @@ const useStyles = makeStyles((theme)=>({
 }));
 
 export default function DataGrid({
-    columns, data, filterText, showFooter=false, tdClassName, fixedLayout=false,
+    columns, data, filterObj=[], showFooter=false, tdClassName, fixedLayout=false,
     print=false, noRowsMessage="No rows found" }) {
   const classes = useStyles();
   // Use the state and functions returned from useTable to build your UI
@@ -62,15 +62,15 @@ export default function DataGrid({
     footerGroups,
     rows,
     prepareRow,
-    setGlobalFilter
+    setAllFilters
   } = useTable({
     columns,
     data: data,
-  }, useGlobalFilter);
+  }, useFilters);
 
   useEffect(()=>{
-    setGlobalFilter(filterText);
-  }, [filterText])
+    setAllFilters(filterObj);
+  }, [filterObj])
 
   // Render the UI for your table
   return (
