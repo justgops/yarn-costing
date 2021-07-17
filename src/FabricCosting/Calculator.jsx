@@ -487,7 +487,12 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
       },
     }).then((res)=>{
       props.setNotification(NOTIFICATION_TYPE.SUCCESS, 'Quality saved successfully');
-      savedOtherData.current = {...otherData};
+      savedOtherData.current = {
+        ...otherData,
+        dispReed: fieldsData.warp_reed,
+        dispPick: fieldsData.weft_pick,
+        dispProdCost: fieldsData.prod_cost,
+      };
       if(!editMode || copy) {
         savedOtherData.current.id = res.data;
         setOtherData(savedOtherData.current);

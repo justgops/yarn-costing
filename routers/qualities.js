@@ -4,10 +4,24 @@ const db = require('../db/models');
 
 router.get('/', function(req, res, next) {
   db.Qualities.findAll({
-    attributes: ['id', 'name', 'notes', 'agentId', 'partyId'],
+    attributes: ['id', 'name', 'notes', 'agentId', 'partyId', 'data'],
     raw: true,
-  }).then((data)=>{
-    res.status(200).json(data);
+  }).then((rows)=>{
+    let finalRows = [];
+    rows.forEach(row => {
+      let data = JSON.parse(row.data);
+      finalRows.push({
+        id: row.id,
+        name: row.name,
+        notes: row.notes,
+        agentId: row.agentId,
+        partyId: row.partyId,
+        dispReed: data.warp_reed,
+        dispPick: data.weft_pick,
+        dispProdCost: data.prod_cost,
+      });
+    });
+    res.status(200).json(finalRows);
   })
   .catch(err => {
     console.error('Unable to connect to the database:', err);

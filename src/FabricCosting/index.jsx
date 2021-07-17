@@ -97,6 +97,21 @@ function FabricCosting(props) {
       }
     },
     {
+      Header: 'EPI/Reed(Inch)',
+      accessor: 'dispReed',
+      width: '10%',
+    },
+    {
+      Header: 'PPI(Pick)',
+      accessor: 'dispPick',
+      width: '10%',
+    },
+    {
+      Header: 'Production Cost',
+      accessor: 'dispProdCost',
+      width: '15%',
+    },
+    {
       Header: 'Agent',
       accessor: 'agentId',
       width: '20%',

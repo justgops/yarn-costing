@@ -26,7 +26,7 @@ const useStyles = makeStyles((theme)=>({
     borderBottom: theme.mixins.border,
   },
   actionCell: {
-    padding: theme.spacing(0.5, 0),
+    padding: theme.spacing(0.25, 0),
     textAlign: 'center',
   },
   tableCellLessPad: {
