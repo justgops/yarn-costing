@@ -21,6 +21,7 @@ const useStyles = makeStyles((theme)=>({
     display: 'flex',
   },
   gridarea: {
+    padding: theme.spacing(1),
     flexGrow: 1,
   }
 }));
@@ -47,21 +48,28 @@ function FabricCosting(props) {
   const classes = useStyles();
   const [openCalc, setOpenCalc] = useState(false);
   const [selId, setSelId] = useState(null);
+  const [agentOpts, setAgentOpts] = useState([]);
+  const [partyOpts, setPartyOpts] = useState([]);
   const [qualities, setQualities] = useState([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const homeRef = useRef();
   const apiObj = useMemo(()=>getApi(), []);
   const licExpired = props.activation.is_trial && props.activation.usage_days_left <= 0;
 
-  useEffect(()=>{
-    /* load masters */
-    apiObj.get(BASE_URL.QUALITIES)
-      .then((res)=>{
-        setQualities(res.data);
-      })
-      .catch((err)=>{
-        props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(err));
-      });
+  useEffect(async ()=>{
+    try {
+      let res = await apiObj.get(BASE_URL.AGENTS);
+      setAgentOpts((res.data || []).map((e)=>({label: e.name, value: e.id})));
+
+      res = await apiObj.get(BASE_URL.PARTIES);
+      setPartyOpts((res.data || []).map((e)=>({label: e.name, value: e.id})));
+
+      /* load masters */
+      res = await apiObj.get(BASE_URL.QUALITIES);
+      setQualities(res.data);
+    } catch (error) {
+      props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(error));
+    }
   }, []);
 
   const columns = useMemo(()=>[
@@ -70,10 +78,10 @@ function FabricCosting(props) {
       id: 'btn-del',
       width: '30px',
       Cell: ({value, row})=>{
-        return <IconButton><DeleteForeverIcon onClick={()=>{
+        return <IconButton onClick={()=>{
           setSelId(row.original.id);
           setConfirmOpen(true);
-        }} /></IconButton>;
+        }} ><DeleteForeverIcon /></IconButton>;
       }
     },
     {
@@ -90,24 +98,25 @@ function FabricCosting(props) {
     },
     {
       Header: 'Agent',
-      accessor: 'agentId',
       width: '20%',
-      // accessor: (originalRow)=>originalRow.data.notes,
-      // Cell: ({value})=><span>{value}</span>,
+      accessor: (originalRow)=>{
+        return (_.find(agentOpts, (e)=>e.value==originalRow.agentId)||{}).label;
+      },
     },
     {
       Header: 'Party',
       accessor: 'partyId',
       width: '20%',
-      // accessor: (originalRow)=>originalRow.data.notes,
-      // Cell: ({value})=><span>{value}</span>,
+      accessor: (originalRow)=>{
+        return (_.find(partyOpts, (e)=>e.value==originalRow.partyId)||{}).label;
+      },
     },{
       Header: 'Notes',
       accessor: 'notes',
       width: '35%',
       Cell: ({value})=><span>{value}</span>,
     },
-  ], [licExpired]);
+  ], [licExpired, agentOpts, partyOpts]);
 
   const [search, setSearch] = useState('');
 
@@ -115,7 +124,7 @@ function FabricCosting(props) {
     if(otherData?.id) {
       setQualities((prevQualities)=>{
         let qIndx = _.findIndex(qualities, (q)=>q.id == otherData.id);
-        if(qIndx > 0) {
+        if(qIndx >= 0) {
           return [
             ...prevQualities.slice(0, qIndx),
             otherData,
@@ -169,7 +178,7 @@ function FabricCosting(props) {
             noRowsMessage="Click on add new quality"/>
         </Box>
       </Box>
-      <Calculator open={openCalc} onClose={onClose} selId={selId} />
+      <Calculator open={openCalc} onClose={onClose} selId={selId} agentOpts={agentOpts} partyOpts={partyOpts}/>
       <ConfirmDialog
         open={confirmOpen}
         onClose={()=>setConfirmOpen(false)}

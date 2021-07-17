@@ -25,6 +25,8 @@ module.exports = (port) => {
   app.use('/api/qualities', require('./routers/qualities'));
   app.use('/api/misc', require('./routers/misc'));
   app.use('/api/settings', require('./routers/settings'));
+  app.use('/api/agents', require('./routers/agents'));
+  app.use('/api/parties', require('./routers/parties'));
 
   app.listen(port || 8787, console.log(`App listening at http://localhost:${port}/app`));
 };

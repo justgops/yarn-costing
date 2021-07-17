@@ -18,7 +18,9 @@ const globalTheme = createMuiTheme({
         info: {
             main: '#f18009'
         },
-
+        background: {
+            default: '#fff',
+        },
     },
     typography: {
         fontSize: 14,
@@ -55,6 +57,9 @@ export const theme = createMuiTheme({
         },
         MuiPaper: {
             variant: "outlined"
+        },
+        MuiMenuItem: {
+            disableTouchRipple: true,
         }
     },
     overrides: {
@@ -98,13 +103,16 @@ export const theme = createMuiTheme({
                 textTransform: 'none',
                 color: globalTheme.palette.primary.main,
                 borderColor: globalTheme.palette.primary.main,
-                '&.Mui-selected': {
+                '&$selected': {
                     backgroundColor: globalTheme.palette.primary.main,
                     color: globalTheme.palette.primary.contrastText,
-                }
+                    '&:hover': {
+                        backgroundColor: globalTheme.palette.primary.dark,
+                    }
+                },
             },
             sizeSmall: {
-                padding: '3px 9px',
+                padding: '3px 16px',
             },
         },
         MuiFormLabel: {
@@ -168,6 +176,11 @@ export const theme = createMuiTheme({
             }
         }
     },
+    otherVars: {
+        reactSelect: {
+            padding: '5px 8px',
+        }
+    }
 }, globalTheme);
 
 export default function Theme(props) {

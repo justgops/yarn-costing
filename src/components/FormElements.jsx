@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { makeStyles } from '@material-ui/core/styles';
+import { makeStyles, useTheme } from '@material-ui/core/styles';
 import { Box, OutlinedInput, CircularProgress, Divider, FormControl, FormHelperText, FormLabel, Grid, InputAdornment, MenuItem, Popover, Select, TextField, Typography, IconButton, RadioGroup, FormControlLabel, Radio } from '@material-ui/core';
-import Autocomplete from '@material-ui/lab/Autocomplete';
-import { ColorPalette, ColorButton } from 'material-ui-color';
 import HelpOutlineIcon from '@material-ui/icons/HelpOutline';
 import FileCopyOutlinedIcon from '@material-ui/icons/FileCopyOutlined';
 import clsx from 'clsx';
+import ReactSelect, { components as RSComponents } from 'react-select';
+import CreatableSelect from 'react-select/creatable';
+import _ from 'lodash';
 
 const useStyles = makeStyles((theme) => ({
   formRoot: {
@@ -27,12 +28,29 @@ const useStyles = makeStyles((theme) => ({
     '& .MuiOutlinedInput-notchedOutline': {
       borderColor: theme.palette.success.main,
       borderWidth: '2px',
-  }},
+    }
+  },
   inputLoss: {
     '& .MuiOutlinedInput-notchedOutline': {
       borderColor: theme.palette.error.main,
       borderWidth: '2px',
-  }},
+    }
+  },
+  inputCell: {
+    '&:not(.Mui-focused)': {
+      '& .MuiOutlinedInput-notchedOutline': {
+        borderColor: 'transparent',
+      }
+    }
+  },
+  inputWarn: {
+    '&:not(.Mui-focused)': {
+      '& .MuiOutlinedInput-notchedOutline': {
+        borderColor: theme.palette.warning.main,
+        borderWidth: '2px',
+      }
+    }
+  },
   autoComplete: {
     padding: theme.spacing(0.25),
   },
@@ -219,7 +237,9 @@ export class FormFieldValidator {
   }
 }
 
-export function FormInputText({InputIcon, errorMsg, required, onChange, label, bottomLabel, readOnly, info, hasCopy, type, inputProps, highlight, profit, ...props}) {
+export function FormInputText({
+    InputIcon, errorMsg, required, onChange, label, bottomLabel, readOnly, info, hasCopy,
+    type, inputProps, highlight, profit, warn, grid, value, className, ...props}) {
   const classes = useStyles();
   let extraProps = {};
   let finalInpProps = {
@@ -239,6 +259,14 @@ export function FormInputText({InputIcon, errorMsg, required, onChange, label, b
     finalInpProps.pattern = '^-?[0-9]\\d*\\.?\\d*$';
   }
 
+  let finalClassNames = [
+    !grid && classes.formInput,
+    highlight && classes.formInputHighlight,
+    grid && classes.inputCell,
+    profit && value && (value > 0 ? classes.inputProfit : classes.inputLoss),
+    warn && classes.inputWarn,
+  ];
+
   return (
     <FormInput required={required} label={label} bottomLabel={bottomLabel} info={info}>
       <FormControl error={Boolean(errorMsg)} fullWidth>
@@ -251,11 +279,7 @@ export function FormInputText({InputIcon, errorMsg, required, onChange, label, b
             <IconButton><FileCopyOutlinedIcon /></IconButton> : null
           }
           fullWidth
-          className={clsx(
-            classes.formInput,
-            highlight && classes.formInputHighlight,
-            profit && props.value && (props.value > 0 ? classes.inputProfit : classes.inputLoss)
-          )}
+          className={clsx(finalClassNames)}
           error={Boolean(errorMsg)}
           data-label={label}
           data-required={required}
@@ -264,9 +288,11 @@ export function FormInputText({InputIcon, errorMsg, required, onChange, label, b
             'data-required': required,
             readOnly: Boolean(readOnly),
             ...finalInpProps,
+            autoComplete: "off",
           }}
           onChange={onChange}
           onBlur={onChange}
+          value={(_.isUndefined(value) || _.isNull(value)) ? '' : value}
           {...props}
           {...extraProps}
         />
@@ -290,6 +316,103 @@ export function FormInputRadio({label, options}) {
   );
 }
 
+const customReactSelectStyles = (theme, readonly)=>({
+  input: (provided) => {
+    return {...provided, padding: 0, margin: 0};
+  },
+  control: (provided, state) => ({
+    ...provided,
+    minHeight: '32px',
+    backgroundColor: readonly ? theme.otherVars.inputDisabledBg : theme.palette.background.default,
+    ...(state.isFocused ? {
+      borderColor: theme.palette.primary.main,
+      boxShadow: 'inset 0 0 0 1px '+theme.palette.primary.main,
+      '&:hover': {
+        borderColor: theme.palette.primary.main,
+      }
+    } : {}),
+  }),
+  dropdownIndicator: (provided)=>({
+    ...provided,
+    padding: '0rem 0.25rem',
+  }),
+  indicatorsContainer: (provided)=>({
+    ...provided,
+    ...(readonly ? {display: 'none'} : {})
+  }),
+  clearIndicator: (provided)=>({
+    ...provided,
+    padding: '0rem 0.25rem',
+  }),
+  valueContainer: (provided, state)=>({
+    ...provided,
+    padding: state.isMulti ? '2px' : theme.otherVars.reactSelect.padding,
+  }),
+  menuPortal: (provided)=>({ ...provided, zIndex: 9999 }),
+  option: (provided)=>({
+    ...provided,
+    padding: '0.5rem',
+  }),
+  multiValue: (provided)=>({
+    ...provided,
+    padding: '2px'
+  }),
+  multiValueLabel: (provided)=>({
+    ...provided,
+    fontSize: '1em',
+    padding: 0,
+    // zIndex: 9999
+  }),
+  multiValueRemove: (provided)=>({
+    ...provided,
+    '&:hover': {
+      backgroundColor: 'unset',
+      color: theme.palette.error.main,
+    },
+    ...(readonly ? {display: 'none'} : {})
+  }),
+  menuPortal: (provided) => ({
+    ...provided,
+    zIndex: '1400',
+  }),
+});
+
+export function FormInputSelectSearch({
+  errorMsg, required, label, firstEmpty=false, loading, hasSearch=false,
+    labelKey='label', valueKey='value', readonly, creatable, ...props}) {
+
+  const theme = useTheme();
+  let commonProps = {
+    menuPortalTarget: document.body,
+    ...props,
+    isSearchable: !readonly,
+    isClearable: props.isClearable && !readonly,
+    openMenuOnClick: !readonly,
+    error: Boolean(errorMsg),
+    styles: customReactSelectStyles(theme, readonly),
+  };
+  if(creatable) {
+    return (
+      <FormInput required={required} label={label}>
+        <FormControl error={Boolean(errorMsg)} fullWidth>
+          <CreatableSelect
+            {...commonProps}
+          />
+        </FormControl>
+      </FormInput>
+    );
+  }
+  return (
+    <FormInput required={required} label={label}>
+      <FormControl error={Boolean(errorMsg)} fullWidth>
+        <ReactSelect
+          {...commonProps}
+        />
+      </FormControl>
+    </FormInput>
+  );
+}
+
 export function FormInputSelect({
     errorMsg, required, onChange, label, options, firstEmpty=false, loading, multiple, hasSearch=false,
     labelKey='label', valueKey='value', ...props}) {
@@ -298,72 +421,35 @@ export function FormInputSelect({
 
   const noOptions = (options.length == 0);
 
-  if(hasSearch) {
-    return (
-      <FormInput required={required} label={label}>
-        <FormControl error={Boolean(errorMsg)} fullWidth>
-          <Autocomplete
-            multiple={multiple}
-            options={options}
-            loading={loading}
-            filterSelectedOptions
-            onChange={onChange}
-            className={clsx(classes.formInput)}
-            getOptionLabel={(option) => typeof(option) === 'string' ? option : option[labelKey]}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                variant="outlined"
-                label=""
-                placeholder={props.placeholder}
-                error={Boolean(errorMsg)}
-                inputProps={{
-                  ...params.inputProps,
-                  className: classes.autoComplete,
-                }}
-              />
-            )}
-            ChipProps={{
-              variant:"outlined",
-            }}
-            {...props}
-          />
-          <FormHelperText>{errorMsg}</FormHelperText>
-        </FormControl>
-      </FormInput>
-    );
-  } else {
-    return (
-      <FormInput required={required} label={label}>
-        <FormControl error={Boolean(errorMsg)} fullWidth>
-          <Select
-            onChange={onChange}
-            onBlur={onChange}
-            variant="outlined"
-            className={classes.formInput}
-            fullWidth
-            helperText={errorMsg}
-            {...props}
-          >
-            {noOptions && <MenuItem value=''><em>{loading ? 'Loading...' : 'None'}</em></MenuItem>}
-            {!noOptions && firstEmpty && <MenuItem value=""><em>None</em></MenuItem>}
-            {options.map((opt)=>{
-              let label = '', value = '';
+  return (
+    <FormInput required={required} label={label}>
+      <FormControl error={Boolean(errorMsg)} fullWidth>
+        <Select
+          onChange={onChange}
+          onBlur={onChange}
+          variant="outlined"
+          className={classes.formInput}
+          fullWidth
+          {...props}
+        >
+          {noOptions && <MenuItem value=''><em>{loading ? 'Loading...' : 'None'}</em></MenuItem>}
+          {!noOptions && firstEmpty && <MenuItem value=""><em>None</em></MenuItem>}
+          {options.map((opt)=>{
+            let label = '', value = '';
 
-              if(typeof(opt) === 'string') {
-                label = value = opt;
-              } else {
-                label = opt[labelKey];
-                value = opt[valueKey];
-              }
-              return  <MenuItem key={value} value={value}>{label}</MenuItem>
-            })}
-          </Select>
-          <FormHelperText>{errorMsg}</FormHelperText>
-        </FormControl>
-      </FormInput>
-    );
-  }
+            if(typeof(opt) === 'string') {
+              label = value = opt;
+            } else {
+              label = opt[labelKey];
+              value = opt[valueKey];
+            }
+            return  <MenuItem key={value} value={value}>{label}</MenuItem>
+          })}
+        </Select>
+        <FormHelperText>{errorMsg}</FormHelperText>
+      </FormControl>
+    </FormInput>
+  );
 }
 
 export function FormHeader({title, hasTopDivider, loadingText}) {

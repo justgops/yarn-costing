@@ -13,6 +13,7 @@ import IconButton from '@material-ui/core/IconButton';
 import CloseIcon from '@material-ui/icons/Close';
 import Settings from './Settings';
 import { setSettings } from './store/reducers/settings';
+import Master from './Master';
 
 const useStyles = makeStyles((theme)=>({
   dashboardRoot: {
@@ -38,6 +39,7 @@ const useStyles = makeStyles((theme)=>({
 
 const navItems = [
   {label: 'Fabric costing', path: '/fabriccosting', component: FabricCosting},
+  {label: 'Master', path: '/master', component: Master},
   {label: 'Settings', path: '/settings', component: Settings},
   {label: 'License', path: '/license', component: License},
 ];

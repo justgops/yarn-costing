@@ -6,7 +6,7 @@ import { connect } from 'react-redux';
 import DataGrid, { TableLayout, TableLayoutCell, TableLayoutRow } from '../components/DataGrid';
 import { NOTIFICATION_TYPE, setNotification } from '../store/reducers/notification';
 import _ from 'lodash';
-import { FormRowItem, FormInputText, FormRow, FormInputSelect, FormInfo } from '../components/FormElements';
+import { FormRowItem, FormInputText, FormRow, FormInputSelect, FormInfo, FormInputSelectSearch } from '../components/FormElements';
 import DeleteForeverRoundedIcon from '@material-ui/icons/DeleteForeverRounded';
 import CloseOutlinedIcon from '@material-ui/icons/CloseOutlined';
 import ReactToPrint from 'react-to-print';
@@ -55,7 +55,7 @@ const useStyles = makeStyles((theme)=>({
   gridCell: {
     '&:not(.Mui-focused)': {
       '& .MuiOutlinedInput-notchedOutline': {
-        border: 0,
+        borderColor: 'transparent',
       }
     }
   },
@@ -133,8 +133,12 @@ const getCalcReducer = (settings)=>(state, action)=>{
 
     for(let row of gridValue) {
       row.perct = rowsChange ? perct : row.perct;
+      let count = parse(row.count);
+      if(state.fabric_type == 'Denear') {
+        count = 5315/count;
+      }
       let weight =
-        parse((state.warp_total_ends * parse(state.warp_lassa)/length_per_count/parse(row.count)/parse(state.warp_ltol))
+        parse((state.warp_total_ends * parse(state.warp_lassa)/length_per_count/count/parse(state.warp_ltol))
           * parse(row.perct)/100);
 
       row.weight_wastage = weight + (parse(row.wastage) * weight)/100;
@@ -167,8 +171,12 @@ const getCalcReducer = (settings)=>(state, action)=>{
     let perct = (100/gridValue.length);
     for(let row of gridValue) {
       row.perct = rowsChange ? perct : row.perct;
+      let count = parse(row.count);
+      if(state.fabric_type == 'Denear') {
+        count = 5315/count;
+      }
       let weight =
-        parse((parse(state.weft_meter) * (parse(state.weft_panna) + parse(state.weft_reed_space)) * parse(state.weft_pick)/(1693.33*row.count))
+        parse((parse(state.weft_meter) * (parse(state.weft_panna) + parse(state.weft_reed_space)) * parse(state.weft_pick)/(1693.33*count))
           *parse(row.perct)/100);
 
       row.weight_wastage = weight + (parse(row.wastage) * weight)/100;
@@ -190,20 +198,24 @@ const getCalcReducer = (settings)=>(state, action)=>{
 
     for(let [i, row] of gridValue.entries()) {
       row.count = state.warps[i].count;
+      let count = parse(row.count);
+      if(state.fabric_type == 'Denear') {
+        count = 5315/count;
+      }
       row.kg_per_cone = parse(parse(row.bag_wt)/parse(row.bag_pack));
-      row.cone_measure = parse(row.kg_per_cone*parse(state.warps[i].count)*1693.33);
+      row.cone_measure = parse(row.kg_per_cone*parse(count)*1693.33);
       row.tara = parse(state.warp_total_ends/parse(row.part));
-      row.sizing_measure = parse(row.cone_measure/parse(row.part));
+      row.sizing_measure = row.cone_measure/parse(row.part)*parse(row.multipart);
       row.fabric_measure = parse(row.sizing_measure/warp_lassa_meter*parse(state.warp_ltol));
-      row.warp_bags = parse((row.tara/parse(row.part))/parse(row.bag_pack));
       row.total_warp_kg = parse(row.fabric_measure*state.warps[i].weight_wastage);
+      row.warp_bags = row.total_warp_kg/parse(row.bag_wt);
+
       row.per_beam = parse(row.sizing_measure/parse(row.beams));
       if(i === 0) {
         state.wp_fabric_meter = round(row.fabric_measure);
       } else {
         state.wp_fabric_meter = 0;
       }
-
     }
     return state;
   }
@@ -261,6 +273,9 @@ const getCalcReducer = (settings)=>(state, action)=>{
 
     state.fin_prod_profit = round((parse(state.fin_market_price)-state.fin_prod_total)/state.fin_prod_total*100);
     state.fin_gray_profit = round((parse(state.fin_market_price)-state.fin_gray_total)/state.fin_gray_total*100);
+
+    state.fin_rev_gray_price = round(parse(state.fin_market_price)-parse(state.fin_process_charge)+elongshrink*state.fin_prod_elongshrink
+      +state.fin_prod_wastage+parse(state.fin_packing)+parse(state.fin_others));
     return state;
   }
 
@@ -376,22 +391,29 @@ function getGridCols(basePath, fieldsDispatch, postReducer, otherCols, cellClass
             return (row.values[col.accessor] || 0) + sum
           }, 0
         );
-        total = parse(total);
-        return <OutlinedInput fullWidth inputProps={{style: {fontWeight: 'bold'}}} className={cellClassName} value={total} type="number" readOnly={true} />
+        total = round(total);
+        return <FormInputText fullWidth inputProps={{style: {fontWeight: 'bold'}}} grid value={total} type="number" readOnly={true} />
       } : '',
       Cell: ({value, row, column})=>{
+        value = col.CellValue ? col.CellValue(value) : value;
+        let warn = col.warn ? col.warn(value): false;
         return (
-          <FormInputText fullWidth className={cellClassName} type="number" value={value} readOnly={col.readOnly} onChange={(e)=>{
-            let value = e.target.value;
-            fieldsDispatch({
-              type: 'set_value',
-              path: basePath.concat([row.index, column.id]),
-              value: value,
-              postReducer: postReducer,
-            });
-          }}/>
+          <FormInputText fullWidth type="number" value={value} readOnly={col.readOnly}
+            onChange={(e)=>{
+              let value = e.target.value;
+              fieldsDispatch({
+                type: 'set_value',
+                path: basePath.concat([row.index, column.id]),
+                value: value,
+                postReducer: postReducer,
+              });
+            }}
+            grid
+            warn={warn} />
         )
-      }
+      },
+      default: col.default,
+      warn: col.warn,
     });
   }
 
@@ -402,10 +424,11 @@ function SectionHead({children}) {
   return <Typography color="secondary" style={{textAlign: 'center', padding: '0.25rem', fontSize: '1.1rem'}}>{children}</Typography>;
 }
 
-function Calculator({open, onClose, selId, settings, ...props}) {
+function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...props}) {
   const classes = useStyles();
   const apiObj = useMemo(()=>getApi(), []);
 
+  const savedOtherData = useRef({});
   const [otherData, setOtherData] = useState({});
   const [fieldsData, fieldsDispatch] = useReducer(getCalcReducer(settings), {});
   const [formDataErr, setFormDataErr] = useState({});
@@ -436,6 +459,8 @@ function Calculator({open, onClose, selId, settings, ...props}) {
         type: 'init',
         value: {
           fin_elongshrink_opt: 'elongation',
+          weft_insertion: 1,
+          fabric_type: 'Cotton',
           ...data,
           weft_meter: 1,
           margin_table: new Array(MARGIN_TABLE_MAX).fill(0),
@@ -445,7 +470,7 @@ function Calculator({open, onClose, selId, settings, ...props}) {
     } catch(err) {
       props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(err));
     }
-  }, [selId]);
+  }, [selId, open]);
 
   const onSave = (copy=false, close=false)=>{
     let method = 'POST', url = BASE_URL.QUALITIES;
@@ -462,13 +487,13 @@ function Calculator({open, onClose, selId, settings, ...props}) {
       },
     }).then((res)=>{
       props.setNotification(NOTIFICATION_TYPE.SUCCESS, 'Quality saved successfully');
-      let newOtherData = {...otherData};
+      savedOtherData.current = {...otherData};
       if(!editMode || copy) {
-        newOtherData.id = res.data;
-        setOtherData(newOtherData);
+        savedOtherData.current.id = res.data;
+        setOtherData(savedOtherData.current);
       }
       if(close) {
-        onClose(newOtherData);
+        onClose(savedOtherData.current);
       }
     }).catch((err)=>{
       props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(err));
@@ -607,21 +632,24 @@ function Calculator({open, onClose, selId, settings, ...props}) {
     },
     {
       Header: 'Weight w/wastage(Kg)',
-      accessor: (row)=>round(row.weight_wastage),
+      accessor: 'weight_wastage',
       readOnly: true,
       showTotal: true,
+      CellValue: (value)=>round(value),
     },
     {
       Header: 'Warp cost(Rs)',
-      accessor: (row)=>round(row.cost),
+      accessor: 'cost',
       readOnly: true,
       showTotal: true,
+      CellValue: (value)=>round(value),
     },
     {
       Header: 'Warp sizing cost(Rs)',
-      accessor: (row)=>round(row.sizing_cost),
+      accessor: 'sizing_cost',
       readOnly: true,
       showTotal: true,
+      CellValue: (value)=>round(value),
     },
   ], classes.gridCell, {
     depPath: 'wpWarps',
@@ -642,7 +670,6 @@ function Calculator({open, onClose, selId, settings, ...props}) {
       accessor: 'wastage',
     },
     {
-      Header: '',
       Header: ()=>{
         return (
         <>
@@ -667,15 +694,17 @@ function Calculator({open, onClose, selId, settings, ...props}) {
     },
     {
       Header: 'Weight w/wastage(Kg)',
-      accessor: (row)=>round(row.weight_wastage),
+      accessor: 'weight_wastage',
       readOnly: true,
       showTotal: true,
+      CellValue: (value)=>round(value),
     },
     {
       Header: 'Weft cost(Rs)',
-      accessor: (row)=>round(row.cost),
+      accessor: 'cost',
       readOnly: true,
       showTotal: true,
+      CellValue: (value)=>round(value),
     },
   ], classes.gridCell, {
     depPath: 'wpWefts',
@@ -698,42 +727,55 @@ function Calculator({open, onClose, selId, settings, ...props}) {
     },
     {
       Header: 'Kg/Cone',
-      accessor: (row)=>round(row.kg_per_cone),
+      accessor: 'kg_per_cone',
       readOnly: true,
+      CellValue: (value)=>round(value),
     },
     {
       Header: 'Cone Measure',
-      accessor: (row)=>round(row.cone_measure),
+      accessor: 'cone_measure',
       readOnly: true,
+      CellValue: (value)=>round(value),
     },
     {
       Header: 'Part',
       accessor: 'part',
     },
     {
+      Header: 'Multi-Part',
+      accessor: 'multipart',
+      default: 1,
+      warn: (value)=>(value != 1),
+    },
+    {
       Header: 'Tara',
-      accessor: (row)=>round(row.tara),
+      accessor: 'tara',
       readOnly: true,
+      CellValue: (value)=>round(value),
     },
     {
       Header: 'Sizing Measure',
-      accessor: (row)=>round(row.sizing_measure),
+      accessor: 'sizing_measure',
       readOnly: true,
+      CellValue: (value)=>round(value),
     },
     {
       Header: 'Fabric Measure',
-      accessor: (row)=>round(row.fabric_measure),
+      accessor: 'fabric_measure',
       readOnly: true,
+      CellValue: (value)=>round(value),
     },
     {
       Header: 'Warp Bags',
-      accessor: (row)=>round(row.warp_bags),
+      accessor: 'warp_bags',
       readOnly: true,
+      CellValue: (value)=>round(value),
     },
     {
       Header: 'Total Warp(Kg)',
-      accessor: (row)=>round(row.total_warp_kg),
+      accessor: 'total_warp_kg',
       readOnly: true,
+      CellValue: (value)=>round(value),
     },
     {
       Header: 'No of Beams',
@@ -741,8 +783,9 @@ function Calculator({open, onClose, selId, settings, ...props}) {
     },
     {
       Header: 'Per Beam',
-      accessor: (row)=>round(row.per_beam),
+      accessor: 'per_beam',
       readOnly: true,
+      CellValue: (value)=>round(value),
     },
   ], classes.gridCell, {}, false), []);
 
@@ -762,23 +805,25 @@ function Calculator({open, onClose, selId, settings, ...props}) {
     },
     {
       Header: 'Weft Bags',
-      accessor: (row)=>round(row.weft_bags),
+      accessor: 'weft_bags',
       readOnly: true,
+      CellValue: (value)=>round(value),
     },
     {
       Header: 'Total Weft(Kg)',
-      accessor: (row)=>round(row.total_weft_kg),
+      accessor: 'total_weft_kg',
       readOnly: true,
+      CellValue: (value)=>round(value),
     },
   ], classes.gridCell, {}, false), []);
 
   const getDefaultRow = (cols) => {
     let row = {}
     cols.forEach((col)=>{
-      if(col.id?.startsWith('btn')) {
+      if(col.id?.startsWith('btn') || _.isUndefined(col.accessor)) {
         return;
       }
-      row[col.accessor] = 0;
+      row[col.accessor] = !_.isUndefined(col.default) ? col.default : 0;
     });
     return row;
   }
@@ -789,7 +834,7 @@ function Calculator({open, onClose, selId, settings, ...props}) {
   const [tabvalue, setTabvalue] = React.useState(0);
 
   const tabChange = (event, newValue) => {
-    setTabvalue(newValue);
+    newValue!=null && setTabvalue(newValue);
   };
 
   return (
@@ -798,7 +843,7 @@ function Calculator({open, onClose, selId, settings, ...props}) {
       exit: false,
     }}>
       <DialogTitle id="simple-dialog-title">
-        <IconButton onClick={()=>onClose(otherData)} style={{marginRight: '0.5rem'}}><CloseOutlinedIcon /></IconButton>
+        <IconButton onClick={()=>onClose(savedOtherData.current)} style={{marginRight: '0.5rem'}}><CloseOutlinedIcon /></IconButton>
         {editMode ? 'Update quality' : 'Add new quality'}
       </DialogTitle>
       <DialogContent dividers={true}>
@@ -808,14 +853,32 @@ function Calculator({open, onClose, selId, settings, ...props}) {
               errorMsg={formDataErr.name} onChange={onOtherChange} />
           </FormRowItem>
           <FormRowItem>
+            <FormInputSelectSearch label="Agent" name='agentId' options={agentOpts} isClearable={true}
+              value={_.find(agentOpts, (e)=>e.value == otherData.agentId)}
+              errorMsg={formDataErr.agentId}
+              onChange={(value)=>{
+                onOtherChange(value?.value, 'agentId');
+              }}
+            />
+          </FormRowItem>
+          <FormRowItem>
+            <FormInputSelectSearch label="Party" name='partyId' options={partyOpts} isClearable={true}
+              value={_.find(partyOpts, (e)=>e.value == otherData.partyId)}
+              errorMsg={formDataErr.partyId}
+              onChange={(value)=>{
+                onOtherChange(value?.value, 'partyId');
+              }}
+            />
+          </FormRowItem>
+          <FormRowItem>
             <FormInputText label="Notes" name='notes' value={otherData.notes}
               errorMsg={formDataErr.notes} onChange={onOtherChange} />
           </FormRowItem>
         </FormRow>
-        {useMemo(()=><Box display="flex" flexDirection="column" height="100%" style={{minHeight: 0}}>
+        <Box display="flex" flexDirection="column" height="100%" style={{minHeight: 0}}>
           <ToggleButtonGroup size="small" value={tabvalue} exclusive onChange={tabChange}>
             <ToggleButton value={0}>
-              Warp/Weft
+              Gray fabric
             </ToggleButton>
             <ToggleButton value={1}>
               Finish fabric
@@ -825,6 +888,16 @@ function Calculator({open, onClose, selId, settings, ...props}) {
             </ToggleButton>
           </ToggleButtonGroup>
           <TabPanel value={tabvalue} index={0}>
+            <Grid container spacing={1}>
+              <Grid item sm={6} md={3} lg={3} xl={10}>
+                <FormInputSelect name='fabric_type' value={fieldsData.fabric_type} options={[
+                    {label:'Cotton', value: 'Cotton'},
+                    {label:'Polyster', value: 'Polyster'},
+                    {label:'Denear', value: 'Denear'},
+                  ]} onChange={onWarpTextChange}
+                />
+              </Grid>
+            </Grid>
             <Grid container spacing={1}>
               <Grid item sm={12} md={12} lg={10} xl={10}>
                 <Paper style={{height: '100%'}}>
@@ -899,6 +972,10 @@ function Calculator({open, onClose, selId, settings, ...props}) {
                       <FormRowItem>
                         <FormInputText type="number" label="PPI(Pick)" name='weft_pick' value={fieldsData.weft_pick}
                           errorMsg={formDataErr.weft_pick} onChange={onWeftTextChange} />
+                      </FormRowItem>
+                      <FormRowItem>
+                        <FormInputText type="number" label="No. of insertion" name='weft_insertion' value={fieldsData.weft_insertion}
+                          errorMsg={formDataErr.weft_insertion} onChange={onWeftTextChange} warn={fieldsData.weft_insertion != 1}/>
                       </FormRowItem>
                       <FormRowItem>
                         <FormInputText type="number" label="Job Rate(paise)" name='weft_job_rate' value={fieldsData.weft_job_rate}
@@ -986,7 +1063,7 @@ function Calculator({open, onClose, selId, settings, ...props}) {
                               <TableLayout>
                                 {fieldsData.breakups?.prod_cost && Object.keys(fieldsData.breakups.prod_cost).map((b)=>{
                                   return (
-                                    <TableLayoutRow>
+                                    <TableLayoutRow key={b}>
                                       <TableLayoutCell>{b}</TableLayoutCell>
                                       <TableLayoutCell>{fieldsData.breakups.prod_cost[b]}</TableLayoutCell>
                                     </TableLayoutRow>
@@ -1090,7 +1167,7 @@ function Calculator({open, onClose, selId, settings, ...props}) {
                       {[...new Array(marginTableRows)].map((v, irow)=>{
                         let mt = fieldsData.margin_table || [];
                         return (
-                          <TableLayoutRow>
+                          <TableLayoutRow key={irow}>
                             <TableLayoutCell className={classes.mtPerct}>{0+irow+1}%</TableLayoutCell>
                             <TableLayoutCell>{mt[0+irow]}</TableLayoutCell>
                             {marginTableRows+irow < mt.length && <>
@@ -1231,7 +1308,7 @@ function Calculator({open, onClose, selId, settings, ...props}) {
                       <TableLayoutCell>Profit(%)</TableLayoutCell>
                     </TableLayoutRow>
                     <TableLayoutRow>
-                      <TableLayoutCell style={{verticaAlign: 'bottom'}}>Finish Fabric Market Price</TableLayoutCell>
+                      <TableLayoutCell>Finish Fabric Market Price</TableLayoutCell>
                       <TableLayoutCell>
                         <FormInputText type="number" name='fin_market_price' value={fieldsData.fin_market_price}
                           onChange={onRateChange} fullWidth />
@@ -1244,6 +1321,14 @@ function Calculator({open, onClose, selId, settings, ...props}) {
                         <FormInputText type="number" name='fin_gray_profit' value={fieldsData.fin_gray_profit}
                           readOnly profit/>
                       </TableLayoutCell>
+                    </TableLayoutRow>
+                    <TableLayoutRow>
+                      <TableLayoutCell>Reverse Gray Market Price</TableLayoutCell>
+                      <TableLayoutCell>
+                        <FormInputText type="number" name='fin_rev_gray_price' value={fieldsData.fin_rev_gray_price} readOnly/>
+                      </TableLayoutCell>
+                      <TableLayoutCell></TableLayoutCell>
+                      <TableLayoutCell></TableLayoutCell>
                     </TableLayoutRow>
                   </TableLayout>
                 </Grid>
@@ -1273,7 +1358,7 @@ function Calculator({open, onClose, selId, settings, ...props}) {
               <DataGrid columns={wpWeftCols} data={fieldsData.wpWefts || []} tdClassName={classes.inputGridTd} />
             </Paper>
           </TabPanel>
-        </Box>, [fieldsData, tabvalue])}
+        </Box>
         <Box display="none">
           <PrintPage fieldsData={fieldsData} printRef={reportRef} warpCols={warpCols} weftCols={weftCols}/>
         </Box>
@@ -1290,7 +1375,7 @@ function Calculator({open, onClose, selId, settings, ...props}) {
           documentTitle={'Costing-'+fieldsData.name}
         />
         {/* <Button variant="outlined" color="primary" style={{marginLeft: '0.5rem'}} disabled>Print(Coming soon)</Button> */}
-        <Button variant="outlined" color="primary" onClick={()=>onClose(otherData)} style={{marginLeft: '0.5rem'}}>Close</Button>
+        <Button variant="outlined" color="primary" onClick={()=>onClose(savedOtherData.current)} style={{marginLeft: '0.5rem'}}>Close</Button>
       </DialogActions>
     </Dialog>
   )

@@ -10,6 +10,7 @@ const useStyles = makeStyles((theme)=>({
     width: '100%',
     overflow: 'auto',
     border: theme.mixins.border,
+    borderRadius: theme.spacing(0.5),
   },
 
   fixedLayout: {

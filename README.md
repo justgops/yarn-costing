@@ -59,3 +59,8 @@ npx sequelize-cli seed:generate --name add-default-settings
 
 npx sequelize-cli migration:create --name new-fields
 npx sequelize-cli migration:create --name new-fields-data-migrate
+
+npx sequelize-cli migration:create --name new-master-tables
+
+npx sequelize-cli model:generate --name Agents --attributes name:string
+npx sequelize-cli model:generate --name Parties --attributes name:string
