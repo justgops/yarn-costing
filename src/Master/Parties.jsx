@@ -52,7 +52,7 @@ function PartyForm({apiObj, selData, onClose, ...props}) {
       ...prevData,
       [name]: value,
     }));
-  });
+  }, []);
 
   const onSaveClick = async ()=>{
     setIsSaving(true);

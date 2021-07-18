@@ -10,6 +10,7 @@ import ToggleButton from '@material-ui/lab/ToggleButton';
 import Agents from './Agents';
 import TabPanel from '../components/TabPanel';
 import Parties from './Parties';
+import { CountChart } from './CountChart';
 
 const useStyles = makeStyles((theme)=>({
   root: {
@@ -45,12 +46,18 @@ function Master(props) {
         <ToggleButton value={1}>
           Parties
         </ToggleButton>
+        <ToggleButton value={2}>
+          Count chart
+        </ToggleButton>
       </ToggleButtonGroup>
       <TabPanel value={tabvalue} index={0}>
         <Agents apiObj={apiObj} licExpired={licExpired}/>
       </TabPanel>
       <TabPanel value={tabvalue} index={1}>
         <Parties apiObj={apiObj} licExpired={licExpired}/>
+      </TabPanel>
+      <TabPanel value={tabvalue} index={2}>
+        <CountChart apiObj={apiObj} licExpired={licExpired}/>
       </TabPanel>
     </Box>
   )

@@ -62,7 +62,7 @@ const useStyles = makeStyles((theme)=>({
 
 export default function DataGrid({
     columns, data, filterObj=[], showFooter=false, tdClassName, fixedLayout=false,
-    print=false, noRowsMessage="No rows found" }) {
+    print=false, noRowsMessage="No rows found", className }) {
   const classes = useStyles();
   // Use the state and functions returned from useTable to build your UI
   const {
@@ -80,11 +80,11 @@ export default function DataGrid({
 
   useEffect(()=>{
     setAllFilters(filterObj);
-  }, [filterObj])
+  }, [JSON.stringify(filterObj)]);
 
   // Render the UI for your table
   return (
-    <table {...getTableProps()} className={clsx(classes.grid, fixedLayout ? classes.fixedLayout : null)}>
+    <table {...getTableProps()} className={clsx(classes.grid, fixedLayout ? classes.fixedLayout : null, className)}>
       <thead>
         {headerGroups.map(headerGroup => (
           <tr {...headerGroup.getHeaderGroupProps()}>
