@@ -46,9 +46,9 @@ function Master(props) {
         <ToggleButton value={1}>
           Parties
         </ToggleButton>
-        <ToggleButton value={2}>
+        {/* <ToggleButton value={2}>
           Count chart
-        </ToggleButton>
+        </ToggleButton> */}
       </ToggleButtonGroup>
       <TabPanel value={tabvalue} index={0}>
         <Agents apiObj={apiObj} licExpired={licExpired}/>
