@@ -52,6 +52,7 @@ router.post('/init', function(req, res) {
 
     system_id = system_id.replace(/[^A-Za-z]*/g, '');
     system_id = toQWERTY(system_id);
+    system_id = system_id.substring(0, 32);
 
     /* Update the DB, create if no entry */
     db.Misc.findOne({
