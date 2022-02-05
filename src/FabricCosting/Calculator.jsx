@@ -17,6 +17,7 @@ import { LASSA_UNIT_OPTIONS } from '../Settings';
 import axios from 'axios';
 import { BASE_URL, getApi } from '../api';
 import { getAxiosErr } from '../utils';
+import MyMath from '../MyMath';
 
 const ROUND_DECIMAL = 5;
 const MARGIN_TABLE_MAX = 25;
@@ -84,35 +85,95 @@ const useStyles = makeStyles((theme)=>({
 function getProdCostWithBreakup(state) {
   let prod_cost = 0;
   let breakup = {
-    "Total warp cost": 0,
-    "Total sizing cost": 0,
-    "Total weft cost": 0,
-    "Weaving charges": state.weaving_charges,
+    "Total warp cost": MyMath(0),
+    "Total sizing cost": MyMath(0),
+    "Total weft cost": MyMath(0),
+    "Weaving charges": MyMath(state.weaving_charges),
   };
   for(let row of state['warps'] || []) {
-    breakup["Total warp cost"] += row.cost;
-    breakup["Total sizing cost"] += row.sizing_cost;
+    breakup["Total warp cost"] = breakup["Total warp cost"].add(row.cost);
+    breakup["Total sizing cost"] = breakup["Total sizing cost"].add(row.sizing_cost);
   }
   for(let row of state['wefts'] || []) {
-    breakup["Total weft cost"]  += row.cost;
+    breakup["Total weft cost"] = breakup["Total weft cost"].add(row.cost);
   }
-  prod_cost += breakup["Total warp cost"] + breakup["Total sizing cost"] + breakup["Total weft cost"] + breakup["Weaving charges"];
-  return [round(prod_cost), breakup];
+  prod_cost = breakup["Total warp cost"]
+    .add(breakup["Total sizing cost"].toString())
+    .add(breakup["Total weft cost"].toString())
+    .add(breakup["Weaving charges"].toString());
+
+  breakup = {
+    "Total warp cost": breakup["Total warp cost"].toString(),
+    "Total sizing cost": breakup["Total sizing cost"].toString(),
+    "Total weft cost": breakup["Total weft cost"].toString(),
+    "Weaving charges": breakup["Weaving charges"].toString(),
+  };
+  return [prod_cost.toString(), breakup];
+}
+
+const summaryReducer = (state)=>{
+  state.total_weight_glm = round(state.warp_weight + state.weft_weight);
+  state.total_weight_glm_wastage = round(state.warp_weight_wastage + state.weft_weight_wastage);
+  state.total_weight_gsm = round((state.total_weight_glm * 39.37)/parse(state.warp_panna));
+  [state.prod_cost, state.breakups.prod_cost] = getProdCostWithBreakup(state);
+  for(let i=0; i<MARGIN_TABLE_MAX; i++) {
+    state.margin_table[i] = round(state.prod_cost*(100+i+1)/100);
+  }
+  return state;
+}
+
+const grayFabricReducer = (state)=>{
+  /* Gray fabric */
+  state.gray_brokerage_calc = parse(state.gray_market_price)*parse(state.gray_brokerage)/100;
+  state.gray_interest_calc = state.prod_cost*parse(state.gray_interest)/100;
+  state.gray_cashdisc_calc = parse(state.gray_market_price)*parse(state.gray_cashdisc)/100;
+  state.gray_others_calc = state.prod_cost*parse(state.gray_others)/100;
+  state.gray_total = round(state.prod_cost + state.gray_brokerage_calc + state.gray_interest_calc
+    + state.gray_cashdisc_calc + state.gray_others_calc);
+
+  state.gray_profit =  round((parse(state.gray_market_price)/state.gray_total-1)*100);
+  let totalWarpCost = 0;
+  let totalWarpSizCost = 0;
+  let totalWeftCost = 0;
+  for(let row of state['warps'] || []) {
+    totalWarpCost += row.cost;
+    totalWarpSizCost += row.sizing_cost;
+  }
+  for(let row of state['wefts'] || []) {
+    totalWeftCost  += row.cost;
+  }
+
+  state.gray_revjobrate = round((parse(state.gray_market_price)-state.gray_brokerage_calc-state.gray_interest_calc
+    -state.gray_cashdisc_calc-state.gray_others_calc-totalWarpCost-totalWarpSizCost-totalWeftCost)*100/parse(state.weft_pick));
+
+  return state;
+}
+
+const finishFabricReducer = (state)=>{
+  /* Finish fabric */
+  state.fin_prod_elongshrink = state.prod_cost*parse(state.fin_elongshrink)/100;
+  state.fin_gray_elongshrink = parse(state.fin_gray_price)*parse(state.fin_elongshrink)/100;
+
+  state.fin_prod_wastage = (state.prod_cost+parse(state.fin_process_charge)+state.fin_prod_elongshrink)
+    *parse(state.fin_wastage)/100;
+  state.fin_gray_wastage = (parse(state.fin_gray_price)+parse(state.fin_process_charge)+state.fin_gray_elongshrink)
+    *parse(state.fin_wastage)/100;
+
+  let elongshrink = state.fin_elongshrink_opt === 'elongation' ? -1 : 1;
+  state.fin_prod_total = round(state.prod_cost+parse(state.fin_process_charge)+elongshrink*state.fin_prod_elongshrink
+    +state.fin_prod_wastage+parse(state.fin_packing)+parse(state.fin_others));
+  state.fin_gray_total = round(parse(state.fin_gray_price)+parse(state.fin_process_charge)+elongshrink*state.fin_gray_elongshrink
+    +state.fin_gray_wastage+parse(state.fin_packing)+parse(state.fin_others));
+
+  state.fin_prod_profit = round((parse(state.fin_market_price)-state.fin_prod_total)/state.fin_prod_total*100);
+  state.fin_gray_profit = round((parse(state.fin_market_price)-state.fin_gray_total)/state.fin_gray_total*100);
+
+  state.fin_rev_gray_price = round(parse(state.fin_market_price)-parse(state.fin_process_charge)+elongshrink*state.fin_prod_elongshrink
+    +state.fin_prod_wastage+parse(state.fin_packing)+parse(state.fin_others));
+  return state;
 }
 
 const getCalcReducer = (settings)=>(state, action)=>{
-  const warpWeftReducer = (state)=>{
-
-    state.total_weight_glm = round(state.warp_weight + state.weft_weight);
-    state.total_weight_glm_wastage = round(state.warp_weight_wastage + state.weft_weight_wastage);
-    state.total_weight_gsm = round((state.total_weight_glm * 39.37)/parse(state.warp_panna));
-    [state.prod_cost, state.breakups.prod_cost] = getProdCostWithBreakup(state);
-    for(let i=0; i<MARGIN_TABLE_MAX; i++) {
-      state.margin_table[i] = round(state.prod_cost*(100+i+1)/100);
-    }
-    return state;
-  }
-
   let warp_lassa_meter = parse(state.warp_lassa);
   let length_per_count = 1693.33;
   if(settings.lassa_unit == 'yard') {
@@ -120,7 +181,7 @@ const getCalcReducer = (settings)=>(state, action)=>{
     warp_lassa_meter = warp_lassa_meter*0.9144;
   }
 
-  const warpPostReducer = (state, rowsChange=false)=>{
+  const warpReducer = (state, rowsChange=false)=>{
     state.warp_total_ends =  parse(state.warp_reed) * (parse(state.warp_panna) + parse(state.warp_reed_space));
     state.warp_cramp = round((warp_lassa_meter-parse(state.warp_ltol))/warp_lassa_meter*100);
     state.warp_weight = 0.0;
@@ -160,7 +221,7 @@ const getCalcReducer = (settings)=>(state, action)=>{
     return state;
   }
 
-  const weftPostReducer = (state, rowsChange)=>{
+  const weftReducer = (state, rowsChange)=>{
     state.weaving_charges = parse(state.weft_pick) * parse(state.weft_job_rate)/100;
     state.weft_weight = 0;
     state.weft_weight_wastage = 0;
@@ -192,7 +253,7 @@ const getCalcReducer = (settings)=>(state, action)=>{
     return state;
   }
 
-  const wpWarpReducer = (state)=>{
+  const packingWarpReducer = (state)=>{
     let gridValue = state['wpWarps'];
     if(!gridValue) return state;
 
@@ -203,7 +264,7 @@ const getCalcReducer = (settings)=>(state, action)=>{
         count = 5315/count;
       }
       row.kg_per_cone = parse(parse(row.bag_wt)/parse(row.bag_pack));
-      row.cone_measure = parse(row.kg_per_cone*parse(count)*1693.33);
+      row.cone_measure = parse((row.kg_per_cone-parse(row.bottom_cone)/1000)*parse(count)*1693.33);
       row.tara = parse(state.warp_total_ends/parse(row.part));
       row.sizing_measure = row.cone_measure/parse(row.part)*parse(row.multipart);
       row.fabric_measure = parse(row.sizing_measure/warp_lassa_meter*parse(state.warp_ltol));
@@ -220,7 +281,7 @@ const getCalcReducer = (settings)=>(state, action)=>{
     return state;
   }
 
-  const wpWeftReducer = (state)=>{
+  const packingWeftReducer = (state)=>{
     let gridValue = state['wpWefts'];
     if(!gridValue) return state;
 
@@ -232,68 +293,21 @@ const getCalcReducer = (settings)=>(state, action)=>{
     return state;
   }
 
-  const rateReducer = (state)=>{
-    /* Gray fabric */
-    state.gray_brokerage_calc = parse(state.gray_market_price)*parse(state.gray_brokerage)/100;
-    state.gray_interest_calc = state.prod_cost*parse(state.gray_interest)/100;
-    state.gray_cashdisc_calc = parse(state.gray_market_price)*parse(state.gray_cashdisc)/100;
-    state.gray_others_calc = state.prod_cost*parse(state.gray_others)/100;
-    state.gray_total = round(state.prod_cost + state.gray_brokerage_calc + state.gray_interest_calc
-      + state.gray_cashdisc_calc + state.gray_others_calc);
-
-    state.gray_profit =  round((parse(state.gray_market_price)/state.gray_total-1)*100);
-    let totalWarpCost = 0;
-    let totalWarpSizCost = 0;
-    let totalWeftCost = 0;
-    for(let row of state['warps'] || []) {
-      totalWarpCost += row.cost;
-      totalWarpSizCost += row.sizing_cost;
-    }
-    for(let row of state['wefts'] || []) {
-      totalWeftCost  += row.cost;
-    }
-
-    state.gray_revjobrate = round((parse(state.gray_market_price)-state.gray_brokerage_calc-state.gray_interest_calc
-      -state.gray_cashdisc_calc-state.gray_others_calc-totalWarpCost-totalWarpSizCost-totalWeftCost)*100/parse(state.weft_pick));
-
-    /* Finish fabric */
-    state.fin_prod_elongshrink = state.prod_cost*parse(state.fin_elongshrink)/100;
-    state.fin_gray_elongshrink = parse(state.fin_gray_price)*parse(state.fin_elongshrink)/100;
-
-    state.fin_prod_wastage = (state.prod_cost+parse(state.fin_process_charge)+state.fin_prod_elongshrink)
-      *parse(state.fin_wastage)/100;
-    state.fin_gray_wastage = (parse(state.fin_gray_price)+parse(state.fin_process_charge)+state.fin_gray_elongshrink)
-      *parse(state.fin_wastage)/100;
-
-    let elongshrink = state.fin_elongshrink_opt === 'elongation' ? -1 : 1;
-    state.fin_prod_total = round(state.prod_cost+parse(state.fin_process_charge)+elongshrink*state.fin_prod_elongshrink
-      +state.fin_prod_wastage+parse(state.fin_packing)+parse(state.fin_others));
-    state.fin_gray_total = round(parse(state.fin_gray_price)+parse(state.fin_process_charge)+elongshrink*state.fin_gray_elongshrink
-      +state.fin_gray_wastage+parse(state.fin_packing)+parse(state.fin_others));
-
-    state.fin_prod_profit = round((parse(state.fin_market_price)-state.fin_prod_total)/state.fin_prod_total*100);
-    state.fin_gray_profit = round((parse(state.fin_market_price)-state.fin_gray_total)/state.fin_gray_total*100);
-
-    state.fin_rev_gray_price = round(parse(state.fin_market_price)-parse(state.fin_process_charge)+elongshrink*state.fin_prod_elongshrink
-      +state.fin_prod_wastage+parse(state.fin_packing)+parse(state.fin_others));
-    return state;
-  }
-
   let newState = _.cloneDeep(state);
   let rows = null;
 
   const processPostReducer = (postReducer, rowsChange)=>{
     if(postReducer == 'warp' || postReducer == 'all') {
-      newState = warpPostReducer(newState, rowsChange);
+      newState = warpReducer(newState, rowsChange);
     }
     if(postReducer == 'weft' || postReducer == 'all') {
-      newState = weftPostReducer(newState, rowsChange);
+      newState = weftReducer(newState, rowsChange);
     }
     if(postReducer == 'wpwarp' || postReducer == 'all') {
-      newState = wpWarpReducer(newState);
+      newState = packingWarpReducer(newState);
     }
     if(postReducer == 'wpweft' || postReducer == 'all') {
-      newState = wpWeftReducer(newState);
+      newState = packingWeftReducer(newState);
     }
   }
   switch(action.type) {
@@ -334,10 +348,10 @@ const getCalcReducer = (settings)=>(state, action)=>{
       break;
   }
 
-  // if(action.postReducer) {
-  newState = warpWeftReducer(newState);
-  newState = rateReducer(newState);
-  // }
+  newState = summaryReducer(newState);
+  newState = grayFabricReducer(newState);
+  newState = finishFabricReducer(newState);
+
   return newState;
 }
 
@@ -397,6 +411,19 @@ function getGridCols(basePath, fieldsDispatch, postReducer, otherCols, cellClass
       Cell: ({value, row, column})=>{
         value = col.CellValue ? col.CellValue(value) : value;
         let warn = col.warn ? col.warn(value): false;
+        if(col.type === 'select') {
+          return (
+            <FormInputSelect value={value} options={col.options} onChange={(e)=>{
+              let value = e.target.value;
+              fieldsDispatch({
+                type: 'set_value',
+                path: basePath.concat([row.index, column.id]),
+                value: value,
+                postReducer: postReducer,
+              });
+            }} grid />
+          );
+        }
         return (
           <FormInputText fullWidth type="number" value={value} readOnly={col.readOnly}
             onChange={(e)=>{
@@ -410,7 +437,7 @@ function getGridCols(basePath, fieldsDispatch, postReducer, otherCols, cellClass
             }}
             grid
             warn={warn} />
-        )
+        );
       },
       default: col.default,
       warn: col.warn,
@@ -460,7 +487,7 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
         value: {
           fin_elongshrink_opt: 'elongation',
           weft_insertion: 1,
-          fabric_type: 'Cotton',
+          // fabric_type: 'Cotton',
           ...data,
           weft_meter: 1,
           margin_table: new Array(MARGIN_TABLE_MAX).fill(0),
@@ -576,6 +603,17 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
 
   const warpCols = useMemo(()=>getGridCols(['warps'], fieldsDispatch, 'warp', [
     {
+      Header: 'Fabric',
+      accessor: 'fabric_type',
+      default: 'Cotton',
+      type: 'select',
+      options:[
+        {label:'Cotton', value: 'Cotton'},
+        {label:'Polyster', value: 'Polyster'},
+        {label:'Denear', value: 'Denear'},
+      ],
+    },
+    {
       Header: 'Count',
       accessor: 'count',
     },
@@ -603,7 +641,7 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
               }}
             />
           }
-          label="w/GST"
+          label="with GST"
         />
         </>
         )
@@ -626,7 +664,7 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
               }}
             />
           }
-          label="w/GST"
+          label="with GST"
         />
         </>
         )
@@ -690,7 +728,7 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
               }}
             />
           }
-          label="w/GST"
+          label="with GST"
         />
         </>
         )
@@ -735,6 +773,11 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
       accessor: 'kg_per_cone',
       readOnly: true,
       CellValue: (value)=>round(value),
+    },
+    {
+      Header: 'Bottom Cone',
+      accessor: 'bottom_cone',
+      default: 50,
     },
     {
       Header: 'Cone Measure',
@@ -895,16 +938,6 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
             </ToggleButtonGroup>
           </Box>
           <TabPanel value={tabvalue} index={0}>
-            <Grid container spacing={1}>
-              <Grid item sm={6} md={3} lg={3} xl={10}>
-                <FormInputSelect name='fabric_type' value={fieldsData.fabric_type} options={[
-                    {label:'Cotton', value: 'Cotton'},
-                    {label:'Polyster', value: 'Polyster'},
-                    {label:'Denear', value: 'Denear'},
-                  ]} onChange={onWarpTextChange}
-                />
-              </Grid>
-            </Grid>
             <Grid container spacing={1}>
               <Grid item sm={12} md={12} lg={10} xl={10}>
                 <Paper style={{height: '100%'}}>

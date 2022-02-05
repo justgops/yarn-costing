@@ -391,6 +391,7 @@ export function FormInputSelectSearch({
     error: Boolean(errorMsg),
     styles: customReactSelectStyles(theme, readonly),
   };
+
   if(creatable) {
     return (
       <FormInput required={required} label={label}>
@@ -415,11 +416,16 @@ export function FormInputSelectSearch({
 
 export function FormInputSelect({
     errorMsg, required, onChange, label, options, firstEmpty=false, loading, multiple, hasSearch=false,
-    labelKey='label', valueKey='value', ...props}) {
+    labelKey='label', valueKey='value', grid, ...props}) {
   const classes = useStyles();
   options = options || [];
 
   const noOptions = (options.length == 0);
+
+  let finalClassNames = [
+    !grid && classes.formInput,
+    grid && classes.inputCell,
+  ];
 
   return (
     <FormInput required={required} label={label}>
@@ -428,7 +434,7 @@ export function FormInputSelect({
           onChange={onChange}
           onBlur={onChange}
           variant="outlined"
-          className={classes.formInput}
+          className={clsx(finalClassNames)}
           fullWidth
           {...props}
         >
@@ -446,7 +452,7 @@ export function FormInputSelect({
             return  <MenuItem key={value} value={value}>{label}</MenuItem>
           })}
         </Select>
-        <FormHelperText>{errorMsg}</FormHelperText>
+        {!grid && <FormHelperText>{errorMsg}</FormHelperText>}
       </FormControl>
     </FormInput>
   );

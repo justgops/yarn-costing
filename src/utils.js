@@ -2,7 +2,6 @@ const crypto = require('crypto');
 const Buffer = require('buffer').Buffer;
 const _ = require('lodash');
 const iv = 'yantra'.padEnd(16, 'a');
-
 function finalizeKey(key) {
     return  key.substr(0, 32).padEnd(32, 'X');
 }
@@ -65,5 +64,4 @@ module.exports = {
       }
       return message;
     }
-
 }
