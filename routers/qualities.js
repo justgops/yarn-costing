@@ -1,9 +1,51 @@
-const Sequelize = require('sequelize');
+const Sequelize = require('Sequelize');
 var router = require('express').Router();
 const db = require('../db/models');
 
 function formatDate(dateCol, alias) {
-  return [Sequelize.fn('strftime', '%d/%m/%Y', Sequelize.col(dateCol)), alias ?? dateCol];
+  return [db.sequelize.fn('strftime', '%d/%m/%Y', db.sequelize.col(dateCol)), alias ?? dateCol];
+}
+
+async function saveHistory(histRec) {
+  let res = await db.QualitiesHistory.findOne({
+    attributes: [[db.sequelize.fn('max', db.sequelize.col('srno')), 'srno']],
+    where: {
+      qid: histRec.qid,
+    }
+  });
+
+  if(res.srno) {
+    if(res.srno >= 15) {
+      res = await db.QualitiesHistory.findOne({
+        attributes: ['srno'],
+        order: [
+          ['updatedAt', 'ASC']
+        ],
+        limit: 1,
+        where: {
+          qid: histRec.qid,
+        }
+      });
+
+      return db.QualitiesHistory.update({
+        ...histRec,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },{
+        where: {
+          qid: histRec.qid,
+          srno: res.srno,
+        },
+      });
+    } else {
+      histRec.srno = res.srno + 1;
+    }
+  } else {
+    histRec.srno = 1;
+  }
+  return db.QualitiesHistory.create({
+    ...histRec,
+  });
 }
 
 router.get('/', function(req, res, next) {
@@ -107,7 +149,7 @@ router.post('/', function(req, res) {
     partyId: reqJson.partyId,
   }).then(async (result)=>{
     res.status(200).json(result.id);
-    await db.QualitiesHistory.create({
+    await saveHistory({
       qid: result.id,
       name: reqJson.name,
       notes: reqJson.notes,
@@ -141,7 +183,7 @@ router.put('/:id', async function(req, res) {
     || reqJson.partyId != rec.partyId
     || JSON.stringify(reqJson.data) != rec.data
   ) {
-    await db.QualitiesHistory.create({
+    await saveHistory({
       qid: id,
       name: reqJson.name,
       notes: reqJson.notes,

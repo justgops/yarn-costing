@@ -6,6 +6,10 @@ module.exports = {
         allowNull: false,
         type: Sequelize.INTEGER
       },
+      srno: {
+        allowNull: false,
+        type: Sequelize.INTEGER
+      },
       data: {
         type: Sequelize.TEXT
       },

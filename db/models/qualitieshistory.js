@@ -15,6 +15,7 @@ module.exports = (sequelize, DataTypes) => {
   }
   QualitiesHistory.init({
     qid: DataTypes.INTEGER,
+    srno: DataTypes.INTEGER,
     data: DataTypes.STRING,
     name: DataTypes.STRING,
     notes: DataTypes.STRING,
