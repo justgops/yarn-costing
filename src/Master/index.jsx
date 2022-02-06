@@ -7,9 +7,10 @@ import _ from 'lodash';
 import { getSettings, setSettings } from '../store/reducers/settings';
 import ToggleButtonGroup from '@material-ui/lab/ToggleButtonGroup';
 import ToggleButton from '@material-ui/lab/ToggleButton';
-import Agents from './Agents';
 import TabPanel from '../components/TabPanel';
+import Agents from './Agents';
 import Parties from './Parties';
+import Sizings from './Sizings';
 import { CountChart } from './CountChart';
 
 const useStyles = makeStyles((theme)=>({
@@ -46,6 +47,9 @@ function Master(props) {
         <ToggleButton value={1}>
           Parties
         </ToggleButton>
+        <ToggleButton value={2}>
+          Sizings
+        </ToggleButton>
         {/* <ToggleButton value={2}>
           Count chart
         </ToggleButton> */}
@@ -57,6 +61,9 @@ function Master(props) {
         <Parties apiObj={apiObj} licExpired={licExpired}/>
       </TabPanel>
       <TabPanel value={tabvalue} index={2}>
+        <Sizings apiObj={apiObj} licExpired={licExpired}/>
+      </TabPanel>
+      <TabPanel value={tabvalue} index={999}>
         <CountChart apiObj={apiObj} licExpired={licExpired}/>
       </TabPanel>
     </Box>

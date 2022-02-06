@@ -26,7 +26,7 @@ const useStyles = makeStyles((theme)=>({
   }
 }));
 
-function AgentForm({apiObj, selData, onClose, ...props}) {
+function SizingForm({apiObj, selData, onClose, ...props}) {
   const defaults = {
     name: '',
   }
@@ -58,13 +58,13 @@ function AgentForm({apiObj, selData, onClose, ...props}) {
     setIsSaving(true);
     try {
       if(formData.id) {
-        await apiObj.put(BASE_URL.AGENTS + '/' + formData.id, formData);
+        await apiObj.put(BASE_URL.SIZINGS + '/' + formData.id, formData);
         onClose(formData);
       } else {
-        let res = await apiObj.post(BASE_URL.AGENTS, formData);
+        let res = await apiObj.post(BASE_URL.SIZINGS, formData);
         onClose({id: res.data, ...formData});
       }
-      props.setNotification(NOTIFICATION_TYPE.SUCCESS, 'Agent details saved succesfully');
+      props.setNotification(NOTIFICATION_TYPE.SUCCESS, 'Sizing details saved succesfully');
     } catch (error) {
       props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(error));
     }
@@ -73,22 +73,22 @@ function AgentForm({apiObj, selData, onClose, ...props}) {
 
   return (
     <CommonDialog onSave={onSaveClick} isSaving={isSaving} onClose={()=>onClose()} {...props}>
-      <FormInputText name="name" type="text" label="Agent Name" value={formData.name}
+      <FormInputText name="name" type="text" label="Sizing Name" value={formData.name}
         onChange={onTextChange} autoFocus/>
     </CommonDialog>
   );
 }
 
-function Agents({apiObj, licExpired, ...props}) {
+function Sizings({apiObj, licExpired, ...props}) {
   const classes = useStyles();
-  const [agents, setAgents] = useState([]);
+  const [sizings, setSizings] = useState([]);
   const [search, setSearch] = useState('');
   const [openForm, setOpenForm] = useState(false);
   const [selData, setSelData] = useState(null);
   useEffect(async ()=>{
     try {
-      let res = await apiObj.get(BASE_URL.AGENTS);
-      setAgents(res.data);
+      let res = await apiObj.get(BASE_URL.SIZINGS);
+      setSizings(res.data);
     } catch (error) {
       props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(error));
     }
@@ -97,17 +97,17 @@ function Agents({apiObj, licExpired, ...props}) {
   const onClose = (formData)=>{
     setOpenForm(false);
     if(formData?.id) {
-      setAgents((prevAgents)=>{
-        let indx = _.findIndex(prevAgents, (e)=>e.id == formData.id);
+      setSizings((prevSizings)=>{
+        let indx = _.findIndex(prevSizings, (e)=>e.id == formData.id);
         if(indx >= 0) {
           return [
-            ...prevAgents.slice(0, indx),
+            ...prevSizings.slice(0, indx),
             formData,
-            ...prevAgents.slice(indx+1),
+            ...prevSizings.slice(indx+1),
           ];
         } else {
           return [
-            ...prevAgents,
+            ...prevSizings,
             formData,
           ];
         }
@@ -116,7 +116,7 @@ function Agents({apiObj, licExpired, ...props}) {
   }
   const columns = useMemo(()=>[
     {
-      Header: 'Agent Name',
+      Header: 'Sizing Name',
       accessor: 'name',
       width: '100%',
       Cell: ({value, row})=>{
@@ -131,20 +131,20 @@ function Agents({apiObj, licExpired, ...props}) {
   return (
     <Box className={classes.root}>
       <Box className={classes.searchbar}>
-        <OutlinedInput value={search} onChange={(e)=>{setSearch(e.target.value)}} style={{minWidth: '20%'}} placeholder="Search agent"/>
+        <OutlinedInput value={search} onChange={(e)=>{setSearch(e.target.value)}} style={{minWidth: '20%'}} placeholder="Search sizing"/>
         <Button variant="contained" color="primary" onClick={()=>{
             setSelData(null);
             setOpenForm(true);
           }} style={{marginLeft: '0.5rem'}}
           disabled={licExpired}
           startIcon={<AddRounded />}
-        >Add new agent</Button>
+        >Add new sizing</Button>
       </Box>
       <Box className={classes.gridarea}>
-        <DataGrid columns={columns} data={agents} filterText={search} fixedLayout={true}
-          noRowsMessage="Click on add new agent"/>
+        <DataGrid columns={columns} data={sizings} filterText={search} fixedLayout={true}
+          noRowsMessage="Click on add new sizing"/>
       </Box>
-      <AgentForm apiObj={apiObj} title={selData?.id ? 'Update Agent' : 'Add Agent'} open={openForm} onClose={onClose}
+      <SizingForm apiObj={apiObj} title={selData?.id ? 'Update Sizing' : 'Add Sizing'} open={openForm} onClose={onClose}
         selData={selData} setNotification={props.setNotification}/>
     </Box>
   );
@@ -152,4 +152,4 @@ function Agents({apiObj, licExpired, ...props}) {
 
 export default connect((state)=>({settings: getSettings(state)}), (dispatch)=>({
   setNotification: (...args)=>{dispatch(setNotification.apply(this, args))},
-}))(Agents);
+}))(Sizings);

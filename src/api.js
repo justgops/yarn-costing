@@ -7,6 +7,7 @@ export const BASE_URL = {
   MISC: '/api/misc',
   AGENTS: '/api/agents',
   PARTIES: '/api/parties',
+  SIZINGS: '/api/sizings',
 }
 
 export function getApi() {
