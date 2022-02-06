@@ -416,7 +416,7 @@ export function FormInputSelectSearch({
 
 export function FormInputSelect({
     errorMsg, required, onChange, label, options, firstEmpty=false, loading, multiple, hasSearch=false,
-    labelKey='label', valueKey='value', grid, ...props}) {
+    labelKey='label', valueKey='value', grid, value, ...props}) {
   const classes = useStyles();
   options = options || [];
 
@@ -435,6 +435,7 @@ export function FormInputSelect({
           onBlur={onChange}
           variant="outlined"
           className={clsx(finalClassNames)}
+          value={_.isUndefined(value) ? '' : value}
           fullWidth
           {...props}
         >

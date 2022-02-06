@@ -195,7 +195,7 @@ const getCalcReducer = (settings)=>(state, action)=>{
     for(let row of gridValue) {
       row.perct = rowsChange ? perct : row.perct;
       let count = parse(row.count);
-      if(state.fabric_type == 'Denear') {
+      if(row.fabric_type == 'Denear') {
         count = 5315/count;
       }
       let weight =
@@ -233,7 +233,7 @@ const getCalcReducer = (settings)=>(state, action)=>{
     for(let row of gridValue) {
       row.perct = rowsChange ? perct : row.perct;
       let count = parse(row.count);
-      if(state.fabric_type == 'Denear') {
+      if(row.fabric_type == 'Denear') {
         count = 5315/count;
       }
       let weight =
@@ -260,7 +260,7 @@ const getCalcReducer = (settings)=>(state, action)=>{
     for(let [i, row] of gridValue.entries()) {
       row.count = state.warps[i].count;
       let count = parse(row.count);
-      if(state.fabric_type == 'Denear') {
+      if(row.fabric_type == 'Denear') {
         count = 5315/count;
       }
       row.kg_per_cone = parse(parse(row.bag_wt)/parse(row.bag_pack));
@@ -391,7 +391,7 @@ function getGridCols(basePath, fieldsDispatch, postReducer, otherCols, cellClass
     baseCols.push({
       Header: col.Header,
       accessor: col.accessor,
-      Print: ({value, row})=>value,
+      Print: ({value, row})=><span>{value}</span>,
       PrintFooter: col.showTotal ? (info)=>{
         let total = info.rows.reduce((sum, row) => {
             return (row.values[col.accessor] || 0) + sum
@@ -480,6 +480,7 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
           }
           data.margin_table = new Array(MARGIN_TABLE_MAX).fill(0);
         }
+        delete data.fabric_type;
       }
       setOtherData(other);
       fieldsDispatch({
@@ -487,7 +488,6 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
         value: {
           fin_elongshrink_opt: 'elongation',
           weft_insertion: 1,
-          // fabric_type: 'Cotton',
           ...data,
           weft_meter: 1,
           margin_table: new Array(MARGIN_TABLE_MAX).fill(0),
@@ -495,6 +495,7 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
         },
       });
     } catch(err) {
+      console.log(err);
       props.setNotification(NOTIFICATION_TYPE.ERROR, getAxiosErr(err));
     }
   }, [selId, open]);
@@ -607,6 +608,7 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
       accessor: 'fabric_type',
       default: 'Cotton',
       type: 'select',
+      width: 110,
       options:[
         {label:'Cotton', value: 'Cotton'},
         {label:'Polyster', value: 'Polyster'},
@@ -700,6 +702,17 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
   }), [fieldsData.warp_sizing_wgst, fieldsData.warp_rate_wgst]);
 
   const weftCols = useMemo(()=>getGridCols(['wefts'], fieldsDispatch, 'weft',[
+    {
+      Header: 'Fabric',
+      accessor: 'fabric_type',
+      default: 'Cotton',
+      type: 'select',
+      options:[
+        {label:'Cotton', value: 'Cotton'},
+        {label:'Polyster', value: 'Polyster'},
+        {label:'Denear', value: 'Denear'},
+      ],
+    },
     {
       Header: 'Count',
       accessor: 'count',
@@ -1408,12 +1421,12 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
         <Button variant="contained" onClick={()=>onSave()} color="primary" disabled={!Boolean(otherData.name)}>Save</Button>
         <Button variant="contained" onClick={()=>onSave(true)} color="primary" disabled={!Boolean(otherData.name) || !Boolean(otherData.id)}>Copy and Save</Button>
         <Button variant="contained" onClick={()=>onSave(false, true)} color="primary" disabled={!Boolean(otherData.name)}>Save and Close</Button>
-        <ReactToPrint
+        {/* <ReactToPrint
           trigger={()=><Button color="primary" variant="outlined" style={{marginLeft: '0.5rem'}}>Print</Button>}
           content={()=>reportRef.current}
           pageStyle={pageStyle}
           documentTitle={'Costing-'+fieldsData.name}
-        />
+        /> */}
         {/* <Button variant="outlined" color="primary" style={{marginLeft: '0.5rem'}} disabled>Print(Coming soon)</Button> */}
         <Button variant="outlined" color="primary" onClick={()=>onClose(savedOtherData.current)} style={{marginLeft: '0.5rem'}}>Close</Button>
       </DialogActions>
