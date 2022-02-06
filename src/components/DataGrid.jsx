@@ -1,6 +1,6 @@
-import { makeStyles } from '@material-ui/core'
+import { Box, makeStyles } from '@material-ui/core'
 import React, { useEffect } from 'react'
-import { useFilters, useFlexLayout, useGlobalFilter, useTable } from 'react-table';
+import { useExpanded, useFilters, useFlexLayout, useGlobalFilter, useTable } from 'react-table';
 import clsx from 'clsx';
 import { Children } from 'react';
 
@@ -62,7 +62,7 @@ const useStyles = makeStyles((theme)=>({
 
 export default function DataGrid({
     columns, data, filterObj=[], showFooter=false, tdClassName, fixedLayout=false,
-    print=false, noRowsMessage="No rows found", className }) {
+    print=false, noRowsMessage="No rows found", className, onExpand }) {
   const classes = useStyles();
   // Use the state and functions returned from useTable to build your UI
   const {
@@ -76,7 +76,7 @@ export default function DataGrid({
   } = useTable({
     columns,
     data: data,
-  }, useFilters);
+  }, useFilters, useExpanded);
 
   useEffect(()=>{
     setAllFilters(filterObj);
@@ -99,12 +99,21 @@ export default function DataGrid({
         {rows.map((row, i) => {
           prepareRow(row)
           return (
+            <>
             <tr {...row.getRowProps()} className={classes.tr}>
               {row.cells.filter((cell)=>print ? Boolean(cell.column.Print) : true).map(cell => {
                 let actionBtn = cell.column?.id.startsWith('btn-');
                 return <td {...cell.getCellProps()} className={clsx(classes.tableCell, actionBtn?classes.actionCell:null, tdClassName)}>{cell.render(print ? 'Print' : 'Cell')}</td>
               })}
             </tr>
+            {row.isExpanded && onExpand &&
+              <tr>
+                <td colSpan="100%" className={clsx(classes.tableCell, tdClassName)}>
+                  {onExpand(row)}
+                </td>
+              </tr>
+            }
+            </>
           )
         })}
         {rows.length == 0 &&

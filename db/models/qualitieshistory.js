@@ -14,6 +14,7 @@ module.exports = (sequelize, DataTypes) => {
     }
   }
   QualitiesHistory.init({
+    qid: DataTypes.INTEGER,
     data: DataTypes.STRING,
     name: DataTypes.STRING,
     notes: DataTypes.STRING,
@@ -23,5 +24,6 @@ module.exports = (sequelize, DataTypes) => {
     sequelize,
     modelName: 'QualitiesHistory',
   });
+  QualitiesHistory.removeAttribute("id");
   return QualitiesHistory;
 };

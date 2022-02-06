@@ -10,6 +10,8 @@ import { AddRounded } from '@material-ui/icons';
 import DeleteForeverIcon from '@material-ui/icons/DeleteForever';
 import ConfirmDialog from '../helpers/ConfirmDialog';
 import { FormInputSelectSearch, FormInputText, FormRow, FormRowItem } from '../components/FormElements';
+import ExpandMoreIcon from '@material-ui/icons/ExpandMore';
+import ExpandLessIcon from '@material-ui/icons/ExpandLess';
 
 const useStyles = makeStyles((theme)=>({
   root: {
@@ -23,6 +25,13 @@ const useStyles = makeStyles((theme)=>({
   gridarea: {
     padding: theme.spacing(0, 1),
     flexGrow: 1,
+  },
+  expandTd: {
+    padding: '8px',
+  },
+  expandTdTitle: {
+    marginBottom: '8px',
+    color: theme.palette.secondary.main,
   }
 }));
 
@@ -42,6 +51,76 @@ function getAxiosErr(err) {
     message = 'Some error occurred. Contact administrator.';
   }
   return message;
+}
+
+function ExpandedRows({apiObj, row, agentOpts, partyOpts}) {
+  const classes = useStyles();
+  let [exrows, setExrows] = useState(null);
+  useEffect(()=>{
+    const fetchExrows = async ()=>{
+      let res = await apiObj.get(BASE_URL.QUALITY_HIST + '/' + row.original.id);
+      setExrows(res.data);
+    }
+    fetchExrows();
+  }, []);
+  if(!exrows) {
+    return <span>Loading...</span>
+  }
+
+  const skipColumns = [
+    {
+      Header: 'Date',
+      accessor: 'date',
+      width: '10%',
+    },
+    {
+      Header: 'Name',
+      accessor: 'name',
+      width: '25%',
+    },
+    {
+      Header: 'EPI/Reed(Inch)',
+      accessor: 'dispReed',
+      width: '10%',
+    },
+    {
+      Header: 'PPI(Pick)',
+      accessor: 'dispPick',
+      width: '10%',
+    },
+    {
+      Header: 'Production Cost',
+      accessor: 'dispProdCost',
+      width: '15%',
+    },
+    {
+      Header: 'Agent',
+      accessor: 'agentId',
+      width: '20%',
+      Cell: ({value})=>{
+        return <span>{(_.find(agentOpts, (e)=>e.value==value)||{}).label}</span>;
+      },
+    },
+    {
+      Header: 'Party',
+      accessor: 'partyId',
+      width: '20%',
+      Cell: ({value})=>{
+        return <span>{(_.find(partyOpts, (e)=>e.value==value)||{}).label}</span>;
+      },
+    },{
+      Header: 'Notes',
+      accessor: 'notes',
+      width: '35%',
+      Cell: ({value})=><span>{value}</span>,
+    },
+  ]
+  return (
+    <div colSpan="100%" className={classes.expandTd}>
+      <div className={classes.expandTdTitle}>History</div>
+      <DataGrid columns={skipColumns} data={exrows} fixedLayout={true} noRowsMessage="No history" />
+    </div>
+  );
 }
 
 function FabricCosting(props) {
@@ -73,6 +152,16 @@ function FabricCosting(props) {
   }, []);
 
   const columns = useMemo(()=>[
+    {
+      Header: '',
+      id: 'btn-expand',
+      width: '30px',
+      Cell: ({value, row})=>{
+        return <IconButton onClick={()=>{
+          row.toggleRowExpanded(!row.isExpanded);
+        }} >{row.isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}</IconButton>;
+      }
+    },
     {
       Header: '',
       id: 'btn-del',
@@ -241,7 +330,8 @@ function FabricCosting(props) {
         </Box>
         <Box className={classes.gridarea}>
           <DataGrid columns={columns} data={qualities} fixedLayout={true} noRowsMessage="Click on add new quality"
-            filterObj={filterObj}/>
+            filterObj={filterObj}
+            onExpand={(row)=><ExpandedRows apiObj={apiObj} row={row} columns={columns} agentOpts={agentOpts} partyOpts={partyOpts}/>} />
         </Box>
       </Box>
       <Calculator open={openCalc} onClose={onClose} selId={selId} agentOpts={agentOpts} partyOpts={partyOpts}/>

@@ -1,11 +1,9 @@
 'use strict';
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('QualitiesHistories', {
-      id: {
+    await queryInterface.createTable('QualitiesHistory', {
+      qid: {
         allowNull: false,
-        autoIncrement: true,
-        primaryKey: true,
         type: Sequelize.INTEGER
       },
       data: {
@@ -34,6 +32,6 @@ module.exports = {
     });
   },
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('QualitiesHistories');
+    await queryInterface.dropTable('QualitiesHistory');
   }
 };
