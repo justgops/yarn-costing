@@ -1,4 +1,3 @@
-const Sequelize = require('sequelize');
 var router = require('express').Router();
 const db = require('../db/models');
 
