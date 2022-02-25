@@ -124,17 +124,23 @@ router.get('/hist/:id', function(req, res, next) {
 });
 
 
-router.delete('/:id', function(req, res) {
-  db.Qualities.destroy({
-    where: {
-      id: req.params.id,
-    },
-  }).then((data)=>{
-    res.status(200).json(data);
-  })
-  .catch(err => {
+router.delete('/:id', async function(req, res) {
+  try {
+    await db.Qualities.destroy({
+      where: {
+        id: req.params.id,
+      },
+    });
+    await db.QualitiesHistory.destroy({
+      where: {
+        qid: req.params.id,
+      },
+    });
+    res.status(200).json('Success');
+  } catch (err) {
     console.error('Unable to connect to the database:', err);
-  });
+    next(err);
+  }
 });
 
 router.post('/', function(req, res) {

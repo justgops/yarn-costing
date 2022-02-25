@@ -11,3 +11,17 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+@font-face {
+  font-family: 'm1';
+  src: url('./fonts/mplus-1m-regular-webfont.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'm1';
+  src: url('./fonts/mplus-1m-bold-webfont.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}

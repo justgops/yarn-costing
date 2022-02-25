@@ -153,7 +153,7 @@ export const theme = createMuiTheme({
         },
         MuiDialogTitle: {
             root: {
-                padding: defaultTheme.spacing(1),
+                padding: defaultTheme.spacing(0.5, 1),
             }
         },
         MuiDialogContent: {
@@ -175,7 +175,7 @@ export const theme = createMuiTheme({
             root: {
                 height: '3px',
             }
-        }
+        },
     },
     otherVars: {
         reactSelect: {

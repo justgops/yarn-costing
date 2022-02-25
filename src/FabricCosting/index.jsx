@@ -129,6 +129,7 @@ function FabricCosting(props) {
   const [selId, setSelId] = useState(null);
   const [agentOpts, setAgentOpts] = useState([]);
   const [partyOpts, setPartyOpts] = useState([]);
+  const [sizingOpts, setSizingOpts] = useState([]);
   const [qualities, setQualities] = useState([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const homeRef = useRef();
@@ -142,6 +143,9 @@ function FabricCosting(props) {
 
       res = await apiObj.get(BASE_URL.PARTIES);
       setPartyOpts((res.data || []).map((e)=>({label: e.name, value: e.id})));
+
+      res = await apiObj.get(BASE_URL.SIZINGS);
+      setSizingOpts((res.data || []).map((e)=>({label: e.name, value: e.id})));
 
       /* load masters */
       res = await apiObj.get(BASE_URL.QUALITIES);
@@ -334,7 +338,7 @@ function FabricCosting(props) {
             onExpand={(row)=><ExpandedRows apiObj={apiObj} row={row} columns={columns} agentOpts={agentOpts} partyOpts={partyOpts}/>} />
         </Box>
       </Box>
-      <Calculator open={openCalc} onClose={onClose} selId={selId} agentOpts={agentOpts} partyOpts={partyOpts}/>
+      <Calculator open={openCalc} onClose={onClose} selId={selId} agentOpts={agentOpts} partyOpts={partyOpts} sizingOpts={sizingOpts}/>
       <ConfirmDialog
         open={confirmOpen}
         onClose={()=>setConfirmOpen(false)}

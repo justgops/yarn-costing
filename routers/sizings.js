@@ -52,4 +52,35 @@ router.put('/:id', function(req, res) {
   });
 });
 
+router.get('/set/:id', function(req, res, next) {
+  db.SizingSets.findAll({
+    raw: true,
+    where: {
+      qid: req.params.id,
+    }
+  }).then((data)=>{
+    res.status(200).json(data);
+  })
+  .catch(err => {
+    console.error('Unable to connect to the database:', err);
+    next(err);
+  });
+});
+
+router.post('/set', function(req, res) {
+  let reqJson = req.body;
+  db.SizingSets.create({
+    setNo: reqJson.setNo,
+    sizingId: reqJson.sizingId,
+    qid: reqJson.qid,
+    name: reqJson.name,
+    data: JSON.stringify(reqJson.data),
+  }).then((result)=>{
+    res.status(200).json(result.id);
+  }).catch((error)=>{
+    res.status(500).json({message: error});
+  });
+});
+
+
 module.exports = router;

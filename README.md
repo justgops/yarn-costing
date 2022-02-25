@@ -67,3 +67,5 @@ npx sequelize-cli model:generate --name Parties --attributes name:string
 
 npx sequelize-cli model:generate --name QualitiesHistory --attributes name:string,notes:string,data:string
 npx sequelize-cli model:generate --name Sizings --attributes name:string
+
+npx sequelize-cli model:generate --name SizingSets --attributes setNo:integer,qid:integer,data:text

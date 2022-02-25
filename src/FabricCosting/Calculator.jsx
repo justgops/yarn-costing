@@ -18,6 +18,8 @@ import axios from 'axios';
 import { BASE_URL, getApi } from '../api';
 import { getAxiosErr } from '../utils';
 import MyMath from '../MyMath';
+import SizingSets from './SizingSets';
+import AddToSet from './AddToSet';
 
 const ROUND_DECIMAL = 5;
 const MARGIN_TABLE_MAX = 25;
@@ -451,7 +453,7 @@ function SectionHead({children}) {
   return <Typography color="secondary" style={{textAlign: 'center', padding: '0.25rem', fontSize: '1.1rem'}}>{children}</Typography>;
 }
 
-function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...props}) {
+function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, sizingOpts, ...props}) {
   const classes = useStyles();
   const apiObj = useMemo(()=>getApi(), []);
 
@@ -948,6 +950,9 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
               <ToggleButton value={2}>
                 Packing
               </ToggleButton>
+              <ToggleButton value={3}>
+                Sizing Sets
+              </ToggleButton>
             </ToggleButtonGroup>
           </Box>
           <TabPanel value={tabvalue} index={0}>
@@ -1409,7 +1414,18 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
                 </FormRow>
               </Box>
               <DataGrid columns={wpWeftCols} data={fieldsData.wpWefts || []} tdClassName={classes.inputGridTd} />
+              <SectionHead>Add to set</SectionHead>
+              <Divider />
+              <Box style={{padding: '1rem 0.5rem'}}>
+                <AddToSet apiObj={apiObj} qid={otherData.id} sizingOpts={sizingOpts} data={{
+                  wpWarps: fieldsData.wpWarps,
+                  wpWefts: fieldsData.wpWefts,
+                }} qualityName={otherData.name}/>
+              </Box>
             </Paper>
+          </TabPanel>
+          <TabPanel value={tabvalue} index={3}>
+            <SizingSets apiObj={apiObj} sizingOpts={sizingOpts} qid={otherData.id}/>
           </TabPanel>
         </Box>
         <Box display="none">
@@ -1420,7 +1436,7 @@ function Calculator({open, onClose, selId, settings, agentOpts, partyOpts, ...pr
       <DialogActions style={{justifyContent: 'flex-start'}}>
         <Button variant="contained" onClick={()=>onSave()} color="primary" disabled={!Boolean(otherData.name)}>Save</Button>
         <Button variant="contained" onClick={()=>onSave(true)} color="primary" disabled={!Boolean(otherData.name) || !Boolean(otherData.id)}>Copy and Save</Button>
-        <Button variant="contained" onClick={()=>onSave(false, true)} color="primary" disabled={!Boolean(otherData.name)}>Save and Close</Button>
+        {/* <Button variant="contained" onClick={()=>onSave(false, true)} color="primary" disabled={!Boolean(otherData.name)}>Save and Close</Button> */}
         {/* <ReactToPrint
           trigger={()=><Button color="primary" variant="outlined" style={{marginLeft: '0.5rem'}}>Print</Button>}
           content={()=>reportRef.current}

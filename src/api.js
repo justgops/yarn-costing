@@ -9,6 +9,7 @@ export const BASE_URL = {
   AGENTS: '/api/agents',
   PARTIES: '/api/parties',
   SIZINGS: '/api/sizings',
+  SIZINGS_SET: '/api/sizings/set',
 }
 
 export function getApi() {
